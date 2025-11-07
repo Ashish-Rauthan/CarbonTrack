@@ -1,0 +1,41 @@
+carbon-tracker-app/
+├── python_app/                    # Your existing Python GUI app
+│   ├── app.py
+│   ├── auth.py
+│   ├── tracker.py
+│   ├── config.py
+│   └── requirements.txt
+├── web_app/                       # MERN Stack Web Application
+│   ├── backend/
+│   │   ├── models/
+│   │   │   ├── User.js
+│   │   │   └── Emission.js
+│   │   ├── routes/
+│   │   │   ├── auth.js
+│   │   │   └── emissions.js
+│   │   ├── middleware/
+│   │   │   └── auth.js
+│   │   ├── config/
+│   │   │   └── database.js
+│   │   ├── .env
+│   │   ├── package.json
+│   │   └── server.js                 # (Same backend as before)
+│   └── frontend/                  # Vite React Frontend
+│       ├── public/
+│       │   └── vite.svg
+│       ├── src/
+│       │   ├── components/
+│       │   │   ├── Login.jsx
+│       │   │   ├── Signup.jsx
+│       │   │   ├── Dashboard.jsx
+│       │   │   └── Navigation.jsx
+│       │   ├── services/
+│       │   │   └── api.js
+│       │   ├── App.jsx
+│       │   ├── App.css
+│       │   ├── main.jsx
+│       │   └── index.css
+│       ├── package.json
+│       ├── vite.config.js
+│       └── .env
+└── README.md

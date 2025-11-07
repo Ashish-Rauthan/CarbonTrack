@@ -1,0 +1,41 @@
+# --- Python build and cache ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# --- Virtual environments ---
+env/
+venv/
+.venv/
+ENV/
+.env/
+.ENV/
+
+# --- IDE / Editor files ---
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# --- OS generated files ---
+.DS_Store
+Thumbs.db
+
+# --- Logs and temporary files ---
+*.log
+*.tmp
+*.bak
+
+# --- App specific ---
+assets/__pycache__/
+codecarbon/__pycache__/
+emissions.csv
+
+# --- Ignore dependency file ---
+requirements.txt
+
+# --- Miscellaneous ---
+*.swp
+*.sqlite3

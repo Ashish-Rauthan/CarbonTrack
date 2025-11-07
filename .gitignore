@@ -1,0 +1,54 @@
+# ---- Global ----
+.DS_Store
+Thumbs.db
+*.log
+*.env
+.env.local
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.pid
+
+# ---- Python (python_app) ----
+python_app/__pycache__/
+python_app/.env
+python_app/venv/
+python_app/env/
+python_app/*.pyc
+python_app/*.log
+python_app/*.sqlite3
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+
+# ---- Node / JS (web_app) ----
+web_app/backend/node_modules/
+web_app/backend/.env
+web_app/backend/package-lock.json
+
+web_app/frontend/node_modules/
+web_app/frontend/.env
+web_app/frontend/package-lock.json
+web_app/frontend/dist/
+
+# ---- IDE / Editors ----
+.vscode/
+.idea/
+*.iml
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.code-workspace
+
+# ---- OS crap ----
+ehthumbs.db
+Icon?
+desktop.ini

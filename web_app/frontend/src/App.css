@@ -1,0 +1,9 @@
+@import "tailwindcss";
+/* Additional global styles can go here */
+.App {
+  min-height: 100vh;
+}
+
+main {
+  min-height: calc(100vh - 80px);
+}
