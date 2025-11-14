@@ -1,3 +1,5 @@
+// web_app/backend/server.js
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -12,6 +14,7 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/emissions', require('./routes/emissions'));
+app.use('/api/reports', require('./routes/reports')); // NEW: Reports route
 
 // Database connection
 mongoose.connect(process.env.MONGODB_URI, {

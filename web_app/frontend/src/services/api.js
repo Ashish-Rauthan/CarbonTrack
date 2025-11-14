@@ -1,6 +1,8 @@
+// web_app/frontend/src/services/api.js
+
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 const api = axios.create({
   baseURL: API_URL,
@@ -39,6 +41,15 @@ export const emissionsAPI = {
   logEmission: (data) => api.post('/emissions/log', data),
   getEmissions: () => api.get('/emissions'),
   getStats: () => api.get('/emissions/stats'),
+}
+
+// NEW: Reports API
+export const reportsAPI = {
+  getSummary: (period = 'week') => api.get(`/reports/summary?period=${period}`),
+  getInsights: () => api.get('/reports/insights'),
+  getProgress: () => api.get('/reports/progress'),
+  downloadReport: (format = 'pdf', period = 'month') => 
+    api.get(`/reports/download?format=${format}&period=${period}`, { responseType: 'blob' }),
 }
 
 export default api
