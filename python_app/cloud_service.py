@@ -69,12 +69,30 @@ class CloudService:
             "estimatedDurationHours": duration_hours
         }
         
+        # Remove None values
         payload = {k: v for k, v in payload.items() if v is not None}
+        
+        print(f"Launching instance - URL: {url}")
+        print(f"Payload: {payload}")
+        print(f"Headers: {self.headers}")
         
         try:
             response = requests.post(url, json=payload, headers=self.headers, timeout=30)
+            
+            print(f"Response status: {response.status_code}")
+            print(f"Response headers: {response.headers}")
+            print(f"Response body: {response.text}")
+            
             response.raise_for_status()
             return response.json()
+        except requests.exceptions.HTTPError as e:
+            print(f"HTTP Error: {e}")
+            print(f"Response content: {e.response.text if hasattr(e, 'response') else 'No response'}")
+            return {
+                'message': f'HTTP Error: {str(e)}', 
+                'success': False,
+                'error': e.response.text if hasattr(e, 'response') else str(e)
+            }
         except Exception as e:
             print(f"Error launching instance: {e}")
             return {'message': f'Error: {str(e)}', 'success': False}

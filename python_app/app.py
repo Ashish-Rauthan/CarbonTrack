@@ -669,20 +669,16 @@ class TrackerWindow(QWidget):
         aws_region = region_data['region']
         instance_type = self.instance_type.currentText()
         
-        # Safely extract savings with fallbacks
-        savings_gco2 = self.savings_data.get('savingsGCO2', self.savings_data.get('savingsGCO₂', '0'))
-        region_name = region_data.get('regionName', 'Unknown')
-        
         # Confirm launch
         reply = QMessageBox.question(
             self,
             "Launch Real AWS Instance",
             f"⚠️ WARNING: This will create a REAL AWS EC2 instance!\n\n"
             f"Instance Type: {instance_type}\n"
-            f"Region: {region_name} ({aws_region})\n"
+            f"Region: {region_data['regionName']} ({aws_region})\n"
             f"Est. Duration: {self.duration_spin.value()} hours\n"
             f"Est. Cost: ~${0.0116 * self.duration_spin.value():.4f}\n"
-            f"Est. Savings: {savings_gco2} gCO₂\n\n"
+            f"Est. Savings: {self.savings_data['savingsGCO2']} gCO₂\n\n"
             f"Make sure to TERMINATE the instance when done!\n\n"
             f"Continue?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
@@ -694,51 +690,81 @@ class TrackerWindow(QWidget):
         self.launch_instance_btn.setEnabled(False)
         self.launch_instance_btn.setText("Launching...")
         
-        result = self.cloud_service.launch_instance(
-            provider=provider,
-            region=aws_region,
-            zone=None,  # AWS doesn't need zone
-            instance_type=instance_type,
-            workload_type=self.workload_type.currentText(),
-            duration_hours=self.duration_spin.value()
-        )
-        
-        self.launch_instance_btn.setEnabled(True)
-        self.launch_instance_btn.setText("🚀 Launch Real AWS Instance")
-        
-        if result and result.get('message') == 'Instance launched successfully':
-            instance = result.get('instance', {})
-            workload = result.get('workload', {})
+        try:
+            # Debug: print what we're sending
+            payload = {
+                "provider": provider,
+                "region": aws_region,
+                "instanceType": instance_type,
+                "workloadType": self.workload_type.currentText(),
+                "estimatedDurationHours": self.duration_spin.value()
+            }
+            print(f"Sending launch request with payload: {payload}")
             
-            QMessageBox.information(
-                self,
-                "✓ Instance Launched",
-                f"AWS Instance launched successfully!\n\n"
-                f"Instance ID: {instance.get('instanceId')}\n"
-                f"Status: {instance.get('state')}\n"
-                f"Region: {aws_region}\n"
-                f"Workload ID: {workload.get('id')}\n"
-                f"Est. Savings: {workload.get('savingsGCO2', 0):.2f} gCO₂\n\n"
-                f"⚠️ IMPORTANT:\n"
-                f"Switch to 'Active Instances' tab to monitor and terminate when done!\n"
-                f"Remember: You pay for every hour it runs!"
+            result = self.cloud_service.launch_instance(
+                provider=provider,
+                region=aws_region,
+                zone=None,
+                instance_type=instance_type,
+                workload_type=self.workload_type.currentText(),
+                duration_hours=self.duration_spin.value()
             )
             
-            # Switch to instances tab
-            if hasattr(self, 'instances_tab'):
-                self.tabs.setCurrentWidget(self.instances_tab)
-                self.refresh_instances()
-        else:
-            error_msg = result.get('error', 'Unknown error') if result else 'Launch failed'
+            print(f"Launch result: {result}")
+            
+            self.launch_instance_btn.setEnabled(True)
+            self.launch_instance_btn.setText("🚀 Launch Real AWS Instance")
+            
+            if result and result.get('message') == 'Instance launched successfully':
+                instance = result.get('instance', {})
+                workload = result.get('workload', {})
+                
+                QMessageBox.information(
+                    self,
+                    "✓ Instance Launched",
+                    f"AWS Instance launched successfully!\n\n"
+                    f"Instance ID: {instance.get('instanceId')}\n"
+                    f"Status: {instance.get('state')}\n"
+                    f"Region: {aws_region}\n"
+                    f"Workload ID: {workload.get('id')}\n"
+                    f"Est. Savings: {workload.get('savingsGCO2', 0):.2f} gCO₂\n\n"
+                    f"⚠️ IMPORTANT:\n"
+                    f"Switch to 'Active Instances' tab to monitor and terminate when done!\n"
+                    f"Remember: You pay for every hour it runs!"
+                )
+                
+                if hasattr(self, 'instances_tab'):
+                    self.tabs.setCurrentWidget(self.instances_tab)
+                    self.refresh_instances()
+            else:
+                error_msg = result.get('error', 'Unknown error') if result else 'Launch failed'
+                error_details = result.get('details', '') if result else ''
+                
+                QMessageBox.warning(
+                    self,
+                    "Launch Failed",
+                    f"Failed to launch AWS instance\n\n"
+                    f"Error: {error_msg}\n\n"
+                    f"Details: {error_details}\n\n"
+                    f"Please check:\n"
+                    f"1. Backend is running\n"
+                    f"2. AWS credentials are correct\n"
+                    f"3. You have permissions in AWS\n"
+                    f"4. Check backend terminal for more details"
+                )
+        except Exception as e:
+            self.launch_instance_btn.setEnabled(True)
+            self.launch_instance_btn.setText("🚀 Launch Real AWS Instance")
+            
+            print(f"Exception launching instance: {e}")
+            import traceback
+            traceback.print_exc()
+            
             QMessageBox.warning(
                 self,
-                "Launch Failed",
-                f"Failed to launch AWS instance\n\n"
-                f"Error: {error_msg}\n\n"
-                f"Please check:\n"
-                f"1. Backend is running\n"
-                f"2. AWS credentials are correct\n"
-                f"3. You have permissions in AWS"
+                "Launch Error",
+                f"An error occurred:\n\n{str(e)}\n\n"
+                f"Check the console output for full details."
             )
 
     def submit_workload(self):

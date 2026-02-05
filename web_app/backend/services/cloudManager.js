@@ -8,7 +8,7 @@ const {
   DescribeInstanceStatusCommand
 } = require('@aws-sdk/client-ec2');
 const { CloudWatchClient, GetMetricStatisticsCommand } = require('@aws-sdk/client-cloudwatch');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client } = require('@aws-sdk/client-s3');
 require('dotenv').config();
 
 class CloudManager {
@@ -20,7 +20,6 @@ class CloudManager {
       return;
     }
 
-    // Validate AWS credentials
     if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
       console.error('❌ AWS credentials not found in environment variables');
       this.isEnabled = false;
@@ -28,7 +27,6 @@ class CloudManager {
     }
 
     try {
-      // Initialize AWS clients
       this.awsConfig = {
         region: process.env.AWS_REGION || 'us-east-1',
         credentials: {
@@ -49,25 +47,79 @@ class CloudManager {
     }
   }
 
-  // Check if cloud integration is available
   isAvailable() {
     return this.isEnabled;
   }
 
-  // AWS EC2 Instance Management
+  getAMIForRegion(region) {
+    const amiMap = {
+      'us-east-1': 'ami-0230bd60aa48260c6',
+      'us-east-2': 'ami-0a606d8395a538502',
+      'us-west-1': 'ami-04fdea8e25817cd69',
+      'us-west-2': 'ami-0688ba7eeeeefe3cd',
+      'eu-west-1': 'ami-0d71ea30463e0ff8d',
+      'eu-west-2': 'ami-0bd2230cfb28832f7',
+      'eu-north-1': 'ami-092cce4a19b438926',
+      'eu-central-1': 'ami-06dd92ecc74fdfb36',
+      'ap-south-1': 'ami-0c2af51e265bd5e0e',
+      'ap-southeast-1': 'ami-0dc2d3e4c0f9ebd18',
+      'ap-northeast-1': 'ami-0bba69335379e17f8',
+      'ca-central-1': 'ami-0c3377fc7bcdc3ed8',
+      'sa-east-1': 'ami-02334c45dd95ca1fc',
+    };
+    
+    const ami = amiMap[region] || amiMap['us-east-1'];
+    
+    console.log(`getAMIForRegion("${region}") = "${ami}"`);
+    console.log(`AMI type: ${typeof ami}, is Array: ${Array.isArray(ami)}`);
+    
+    // Safety check
+    if (Array.isArray(ami)) {
+      console.error('ERROR: AMI is an array!', ami);
+      return String(ami[0]);
+    }
+    
+    return String(ami); // Force to string
+  }
+
   async launchAWSInstance(region, instanceType = 't2.micro', tags = {}) {
+    console.log('\n=== LAUNCH AWS INSTANCE ===');
+    console.log('Region:', region);
+    console.log('Instance Type:', instanceType);
+    console.log('Tags:', tags);
+    
     if (!this.isEnabled) {
       throw new Error('Cloud integration is disabled');
     }
 
     try {
-      // Create EC2 client for specific region if different
       const ec2 = region !== this.awsConfig.region 
         ? new EC2Client({ ...this.awsConfig, region })
         : this.ec2Client;
 
+      // Get AMI with debugging
+      console.log('Getting AMI for region...');
+      let amiId = this.getAMIForRegion(region);
+      
+      console.log('AMI ID before sanitization:', amiId);
+      console.log('AMI ID type:', typeof amiId);
+      console.log('AMI ID is Array?:', Array.isArray(amiId));
+      
+      // Extra defensive coding
+      if (Array.isArray(amiId)) {
+        console.error('WARNING: AMI ID is an array, extracting first element');
+        amiId = amiId[0];
+      }
+      
+      // Force to string and trim
+      amiId = String(amiId).trim();
+      
+      console.log('Final AMI ID:', amiId);
+      console.log('Final AMI ID length:', amiId.length);
+      console.log('Final AMI ID starts with "ami-"?:', amiId.startsWith('ami-'));
+
       const params = {
-        ImageId: this.getAMIForRegion(region),
+        ImageId: amiId,
         InstanceType: instanceType,
         MinCount: 1,
         MaxCount: 1,
@@ -85,13 +137,17 @@ class CloudManager {
         ]
       };
 
+      console.log('Launch params:');
+      console.log(JSON.stringify(params, null, 2));
       console.log(`Launching ${instanceType} instance in ${region}...`);
+      
       const command = new RunInstancesCommand(params);
       const response = await ec2.send(command);
       
       const instance = response.Instances[0];
       
       console.log(`✓ Instance launched: ${instance.InstanceId}`);
+      console.log('=== LAUNCH SUCCESS ===\n');
       
       return {
         success: true,
@@ -103,7 +159,9 @@ class CloudManager {
         provider: 'aws'
       };
     } catch (error) {
-      console.error('Error launching AWS instance:', error);
+      console.error('=== LAUNCH FAILED ===');
+      console.error('Error:', error.message);
+      console.error('Stack:', error.stack);
       throw new Error(`Failed to launch AWS instance: ${error.message}`);
     }
   }
@@ -223,65 +281,7 @@ class CloudManager {
     }
   }
 
-  async getAWSInstanceMetrics(instanceId, region, startTime, endTime) {
-    if (!this.isEnabled) {
-      throw new Error('Cloud integration is disabled');
-    }
-
-    try {
-      const cloudWatch = region && region !== this.awsConfig.region
-        ? new CloudWatchClient({ ...this.awsConfig, region })
-        : this.cloudWatchClient;
-
-      const command = new GetMetricStatisticsCommand({
-        Namespace: 'AWS/EC2',
-        MetricName: 'CPUUtilization',
-        Dimensions: [
-          {
-            Name: 'InstanceId',
-            Value: instanceId
-          }
-        ],
-        StartTime: startTime,
-        EndTime: endTime,
-        Period: 300, // 5 minutes
-        Statistics: ['Average', 'Maximum']
-      });
-
-      const response = await cloudWatch.send(command);
-      return {
-        success: true,
-        datapoints: response.Datapoints
-      };
-    } catch (error) {
-      console.error('Error getting AWS metrics:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Helper Methods
-  getAMIForRegion(region) {
-    // Amazon Linux 2023 AMI IDs by region (updated regularly)
-    const amiMap = {
-      'us-east-1': 'ami-0bb84b8ffd87024d8',
-      'us-east-2': 'ami-0dacb0c129b49f529',
-      'us-west-1': 'ami-0f8e81a3da6e2510a',
-      'us-west-2': 'ami-0a7d051a1c4b54f65',
-      'eu-west-1': 'ami-01cae1550c0adea9c',
-      'eu-west-2': 'ami-0eb260c4d5475b901',
-      'eu-north-1': 'ami-064087b8d355e0f7c',
-      'eu-central-1': 'ami-0a1ee2fb28fe05df3',
-      'ap-south-1': 'ami-0f58b397bc5c1f2e8',
-      'ap-southeast-1': 'ami-0dc2d3e4c0f9ebd18',
-      'ap-northeast-1': 'ami-0d52744d6551d851e',
-      'ca-central-1': 'ami-0c3d3a230b9668c02',
-      'sa-east-1': 'ami-0c820c196a818d66a',
-    };
-    return amiMap[region] || amiMap['us-east-1'];
-  }
-
   async calculateCloudEmissions(provider, region, instanceType, durationHours) {
-    // Power consumption estimates (watts) for AWS instance types
     const powerMap = {
       't2.micro': 5,
       't2.small': 10,
@@ -295,7 +295,6 @@ class CloudManager {
     const power = powerMap[instanceType] || 5;
     const energyKWh = (power * durationHours) / 1000;
 
-    // Get region carbon intensity from database
     const CloudRegion = require('../models/CloudRegion');
     const regionData = await CloudRegion.findOne({ 
       provider, 
@@ -322,7 +321,7 @@ class CloudManager {
       return { 
         success: false, 
         provider, 
-        error: 'Cloud integration is disabled. Please check your AWS credentials.' 
+        error: 'Cloud integration is disabled' 
       };
     }
 
@@ -330,7 +329,7 @@ class CloudManager {
       return { 
         success: false, 
         provider, 
-        error: 'Only AWS is supported in this configuration' 
+        error: 'Only AWS is supported' 
       };
     }
 
@@ -348,8 +347,7 @@ class CloudManager {
       return { 
         success: false, 
         provider: 'aws', 
-        error: error.message,
-        details: error.code || 'Unknown error'
+        error: error.message
       };
     }
   }
@@ -359,23 +357,19 @@ class CloudManager {
       return 0;
     }
 
-    // AWS pricing (USD per hour) - updated 2024
     const costMap = {
       't2.micro': 0.0116,
       't2.small': 0.023,
       't2.medium': 0.0464,
-      't2.large': 0.0928,
       't3.micro': 0.0104,
       't3.small': 0.0208,
       't3.medium': 0.0416,
-      't3.large': 0.0832,
     };
 
     const hourlyCost = costMap[instanceType] || 0.01;
     return parseFloat((hourlyCost * durationHours).toFixed(4));
   }
 
-  // Get supported regions
   getSupportedRegions() {
     return [
       'us-east-1',
@@ -394,7 +388,6 @@ class CloudManager {
     ];
   }
 
-  // Get supported instance types
   getSupportedInstanceTypes() {
     return [
       't2.micro',
