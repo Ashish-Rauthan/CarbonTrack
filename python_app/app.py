@@ -208,7 +208,7 @@ class TrackerWindow(QWidget):
         # Info label
         self.label = QLabel("Press Start to begin tracking your device emissions.")
         self.label.setWordWrap(True)
-        self.label.setStyleSheet("margin: 10px; font-size: 14px; padding: 20px; background-color: #f0f0f0; border-radius: 5px;")
+        self.label.setStyleSheet("margin: 10px; font-size: 14px; padding: 20px; background-color: #000000; border-radius: 5px;")
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # Buttons
@@ -401,7 +401,7 @@ class TrackerWindow(QWidget):
         self.results_text = QTextEdit()
         self.results_text.setReadOnly(True)
         self.results_text.setMaximumHeight(200)
-        self.results_text.setStyleSheet("background-color: #f9f9f9; padding: 10px; border-radius: 5px;")
+        self.results_text.setStyleSheet("background-color: #000000; padding: 10px; border-radius: 5px;")
         layout.addWidget(self.results_text)
         
         # Action buttons

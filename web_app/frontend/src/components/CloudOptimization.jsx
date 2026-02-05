@@ -175,6 +175,37 @@ const CloudOptimization = () => {
     }
   }
 
+  const handleTerminateWorkload = async (workload) => {
+    const confirmed = window.confirm(
+      `⚠️ Are you sure you want to TERMINATE this workload?\n\n` +
+      `Instance ID: ${workload.instanceId}\n` +
+      `Region: ${workload.targetCloudRegion}\n` +
+      `Status: ${workload.status}\n\n` +
+      `This action cannot be undone!`
+    )
+
+    if (!confirmed) return
+
+    try {
+      const response = await cloudAPI.terminateInstance({
+        provider: workload.cloudProvider,
+        instanceId: workload.instanceId,
+        region: workload.targetCloudRegion,
+        workloadId: workload._id
+      })
+
+      if (response.data.message === 'Instance terminated successfully') {
+        alert(`✓ Instance ${workload.instanceId} terminated successfully!`)
+        fetchWorkloads() // Refresh the list
+      } else {
+        alert(`Failed to terminate instance: ${response.data.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error terminating workload:', error)
+      alert(`Error terminating instance: ${error.response?.data?.error || error.message}`)
+    }
+  }
+
   return (
     <div style={{
       background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
@@ -688,17 +719,37 @@ const CloudOptimization = () => {
                           • {workload.cloudProvider.toUpperCase()}
                         </span>
                       </div>
-                      <div style={{
-                        padding: '0.25rem 0.75rem',
-                        background: workload.status === 'completed' ? '#4CAF50' :
-                                   workload.status === 'running' ? '#2196F3' :
-                                   workload.status === 'failed' ? '#f44336' : '#ff9800',
-                        color: 'white',
-                        borderRadius: '4px',
-                        fontSize: '0.875rem',
-                        fontWeight: '600'
-                      }}>
-                        {workload.status.toUpperCase()}
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <div style={{
+                          padding: '0.25rem 0.75rem',
+                          background: workload.status === 'completed' ? '#4CAF50' :
+                                     workload.status === 'running' ? '#2196F3' :
+                                     workload.status === 'failed' ? '#f44336' : '#ff9800',
+                          color: 'white',
+                          borderRadius: '4px',
+                          fontSize: '0.875rem',
+                          fontWeight: '600'
+                        }}>
+                          {workload.status.toUpperCase()}
+                        </div>
+                        
+                        {(workload.status === 'running' || workload.status === 'pending') && workload.instanceId && (
+                          <button
+                            onClick={() => handleTerminateWorkload(workload)}
+                            style={{
+                              padding: '0.25rem 0.75rem',
+                              background: '#f44336',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontSize: '0.875rem',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            🗑️ Terminate
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -729,6 +780,12 @@ const CloudOptimization = () => {
                         <div style={{ color: '#999' }}>Started:</div>
                         <div>{new Date(workload.startTime).toLocaleDateString()}</div>
                       </div>
+                      {workload.instanceId && (
+                        <div>
+                          <div style={{ color: '#999' }}>Instance ID:</div>
+                          <div style={{ fontSize: '0.75rem' }}>{workload.instanceId}</div>
+                        </div>
+                      )}
                     </div>
 
                     {workload.metadata?.simulated && (
