@@ -1,43 +1,55 @@
+// web_app/backend/models/Emission.js
+
 const mongoose = require('mongoose');
 
-const EmissionSchema = new mongoose.Schema({
+const emissionSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
-  },
-  session_id: {
-    type: String,
     required: true,
-    unique: true
+    index: true
   },
-  device_id: {
+  sessionId: {
     type: String,
     required: true
   },
-  energy_kwh: {
-    type: Number,
+  deviceId: {
+    type: String,
     required: true
-  },
-  emissions_gco2: {
-    type: Number,
-    required: true
-  },
-  duration_seconds: {
-    type: Number,
-    default: 0
   },
   timestamp: {
     type: Date,
-    required: true
+    default: Date.now,
+    index: true
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
+  energyKWh: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  emissionsGCO2: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  durationSeconds: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  metadata: {
+    country: String,
+    region: String,
+    powerSource: String,
+    cpuUsage: Number,
+    ramUsage: Number
   }
+}, {
+  timestamps: true
 });
 
-// Index for faster queries
-EmissionSchema.index({ user: 1, timestamp: -1 });
+// Indexes for efficient queries
+emissionSchema.index({ user: 1, timestamp: -1 });
+emissionSchema.index({ user: 1, createdAt: -1 });
 
-module.exports = mongoose.model('Emission', EmissionSchema);
+module.exports = mongoose.model('Emission', emissionSchema);

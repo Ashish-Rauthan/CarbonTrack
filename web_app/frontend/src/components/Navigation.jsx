@@ -1,5 +1,3 @@
-// web_app/frontend/src/components/Navigation.jsx
-
 import React, { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 
@@ -16,7 +14,11 @@ const Navigation = () => {
   }
 
   const isActive = (path) => {
-    return location.pathname === path || location.pathname.startsWith(path)
+    return location.pathname === path || location.pathname.startsWith(path + '/')
+  }
+
+  if (!token && (location.pathname === '/login' || location.pathname === '/signup')) {
+    return null
   }
 
   return (
@@ -49,7 +51,7 @@ const Navigation = () => {
         }}>
           🌍 Carbon Tracker
         </Link>
-        
+
         <ul style={{
           display: 'flex',
           listStyle: 'none',
@@ -61,21 +63,37 @@ const Navigation = () => {
           {token ? (
             <>
               <li>
-                <Link 
-                  to="/dashboard" 
+                <Link
+                  to="/dashboard"
                   style={{
-                    color: isActive('/dashboard') ? '#4CAF50' : '#e0e0e0',
+                    color: isActive('/dashboard') && !isActive('/reports') && !isActive('/cloud') ? '#4CAF50' : '#e0e0e0',
                     textDecoration: 'none',
                     transition: 'all 0.3s',
                     padding: '0.5rem 1rem',
                     borderRadius: '4px',
-                    background: isActive('/dashboard') && !isActive('/reports') ? '#3a3a3a' : 'transparent'
+                    background: isActive('/dashboard') && !isActive('/reports') && !isActive('/cloud') ? '#3a3a3a' : 'transparent'
                   }}
                 >
                   Dashboard
                 </Link>
               </li>
-              
+
+              <li>
+                <Link
+                  to="/cloud"
+                  style={{
+                    color: isActive('/cloud') ? '#4CAF50' : '#e0e0e0',
+                    textDecoration: 'none',
+                    transition: 'all 0.3s',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '4px',
+                    background: isActive('/cloud') ? '#3a3a3a' : 'transparent'
+                  }}
+                >
+                  ☁️ Cloud
+                </Link>
+              </li>
+
               <li style={{ position: 'relative' }}>
                 <button
                   onMouseEnter={() => setShowReportsMenu(true)}
@@ -97,7 +115,7 @@ const Navigation = () => {
                   Reports
                   <span style={{ fontSize: '0.7rem' }}>▼</span>
                 </button>
-                
+
                 {showReportsMenu && (
                   <div
                     onMouseEnter={() => setShowReportsMenu(true)}
@@ -162,10 +180,10 @@ const Navigation = () => {
                   </div>
                 )}
               </li>
-              
+
               <li>
-                <button 
-                  onClick={handleLogout} 
+                <button
+                  onClick={handleLogout}
                   style={{
                     background: 'transparent',
                     border: '1px solid #4CAF50',
@@ -192,7 +210,7 @@ const Navigation = () => {
           ) : (
             <>
               <li>
-                <Link 
+                <Link
                   to="/login"
                   style={{
                     color: '#e0e0e0',
@@ -208,7 +226,7 @@ const Navigation = () => {
                 </Link>
               </li>
               <li>
-                <Link 
+                <Link
                   to="/signup"
                   style={{
                     color: '#e0e0e0',

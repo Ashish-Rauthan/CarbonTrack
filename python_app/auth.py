@@ -1,4 +1,5 @@
-# auth.py
+# python_app/auth.py
+
 import requests
 from config import BACKEND_URL
 
@@ -15,7 +16,6 @@ def login(email, password):
         )
         if r.status_code == 200:
             data = r.json()
-            # Return just the token
             return data.get("token")
     except Exception as e:
         print("Login failed:", e)

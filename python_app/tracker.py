@@ -1,4 +1,5 @@
-# tracker.py
+# python_app/tracker.py
+
 import uuid
 import time
 from datetime import datetime
@@ -36,7 +37,7 @@ class TrackerSession:
         self.tracker = EmissionsTracker(
             project_name="DesktopTracker", 
             output_dir=".",
-            save_to_file=False  # Don't save to CSV, we'll upload to API
+            save_to_file=False
         )
         self.tracker.start()
         self.start_time = time.time()
@@ -47,13 +48,11 @@ class TrackerSession:
             return None
         
         print("Stopping tracker...")
-        emissions_kg = self.tracker.stop()  # Returns float (kg CO2)
+        emissions_kg = self.tracker.stop()
         self.running = False
         
-        # Calculate duration
         duration_seconds = time.time() - self.start_time if self.start_time else 0
         
-        # Access the final emissions data from tracker
         final_data = self.tracker.final_emissions_data
         
         result = {
@@ -61,13 +60,12 @@ class TrackerSession:
             "device_id": self.device_id,
             "timestamp": datetime.utcnow().isoformat(),
             "energy_kwh": final_data.energy_consumed,
-            "emissions_gco2": final_data.emissions * 1000,  # Convert kg to g
+            "emissions_gco2": final_data.emissions * 1000,
             "duration_seconds": duration_seconds
         }
         
         print("Tracking result:", result)
         
-        # Upload to backend if token is available
         if self.token:
             try:
                 upload_result = upload_emission(self.token, result)

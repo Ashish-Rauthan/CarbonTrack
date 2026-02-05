@@ -1,15 +1,20 @@
-// web_app/frontend/src/App.jsx
-
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Navigation from './components/Navigation'
 import Login from './components/Login'
 import Signup from './components/Signup'
 import Dashboard from './components/Dashboard'
+import CloudOptimization from './components/CloudOptimization'
 import ReportSummary from './components/Reports/ReportSummary'
 import ReportInsights from './components/Reports/ReportInsights'
 import ReportProgress from './components/Reports/ReportProgress'
 import './App.css'
+
+// Protected route component
+const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('token')
+  return token ? children : <Navigate to="/login" />
+}
 
 function App() {
   return (
@@ -18,13 +23,56 @@ function App() {
         <Navigation />
         <main>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/reports" element={<ReportSummary />} />
-            <Route path="/reports/insights" element={<ReportInsights />} />
-            <Route path="/reports/progress" element={<ReportProgress />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cloud"
+              element={
+                <ProtectedRoute>
+                  <CloudOptimization />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <ProtectedRoute>
+                  <ReportSummary />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports/insights"
+              element={
+                <ProtectedRoute>
+                  <ReportInsights />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports/progress"
+              element={
+                <ProtectedRoute>
+                  <ReportProgress />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </main>
       </div>

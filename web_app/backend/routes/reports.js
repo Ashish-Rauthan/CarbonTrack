@@ -2,11 +2,12 @@
 
 const express = require('express');
 const Emission = require('../models/Emission');
+const CloudWorkload = require('../models/CloudWorkload');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-// Get summary report for a specific period
+// Get summary report
 router.get('/summary', auth, async (req, res) => {
   try {
     const { period = 'week' } = req.query;
@@ -31,257 +32,209 @@ router.get('/summary', auth, async (req, res) => {
       default:
         startDate.setDate(now.getDate() - 7);
     }
-
-    // Get user's emissions for the period
-    const emissions = await Emission.find({
-      user: req.user._id,
-      timestamp: { $gte: startDate, $lte: now }
-    }).sort({ timestamp: -1 });
-
-    // Calculate statistics
-    const totalEmissions = emissions.reduce((sum, e) => sum + e.emissions_gco2, 0);
-    const totalEnergy = emissions.reduce((sum, e) => sum + e.energy_kwh, 0);
-    const sessionsCount = emissions.length;
-    const avgPerSession = sessionsCount > 0 ? totalEmissions / sessionsCount : 0;
-
-    // Get platform average for comparison
-    const platformAvg = await Emission.aggregate([
-      { $match: { timestamp: { $gte: startDate, $lte: now } } },
-      { $group: { 
-        _id: null, 
-        avgEmissions: { $avg: "$emissions_gco2" }
-      }}
-    ]);
-
-    const platformAverage = platformAvg.length > 0 ? platformAvg[0].avgEmissions : 0;
-    const comparisonToAverage = platformAverage > 0 
-      ? ((avgPerSession - platformAverage) / platformAverage * 100)
-      : 0;
-
-    // Determine trend
-    const midPoint = Math.floor(emissions.length / 2);
-    const firstHalf = emissions.slice(midPoint).reduce((sum, e) => sum + e.emissions_gco2, 0);
-    const secondHalf = emissions.slice(0, midPoint).reduce((sum, e) => sum + e.emissions_gco2, 0);
     
-    let trend = 'stable';
-    if (secondHalf > firstHalf * 1.1) trend = 'increasing';
-    else if (secondHalf < firstHalf * 0.9) trend = 'decreasing';
-
-    // Generate recommendations
-    const recommendations = [];
-    if (comparisonToAverage > 10) {
-      recommendations.push('Your emissions are higher than average. Consider reducing screen brightness and closing unused applications.');
-    }
-    if (trend === 'increasing') {
-      recommendations.push('Your emissions are increasing. Review your recent usage patterns.');
-    }
-    if (totalEnergy > 1) {
-      recommendations.push('Consider enabling power-saving mode on your device.');
-    }
-
-    // Calculate environmental impact
-    const impact = {
-      trees: (totalEmissions / 1000 / 0.021).toFixed(1),
-      carMiles: (totalEmissions / 1000 / 0.404).toFixed(2),
-      phoneCharges: (totalEmissions / 0.008).toFixed(0),
-    };
-
+    // Get local emissions stats
+    const localStats = await Emission.aggregate([
+      {
+        $match: {
+          user: req.user.id,
+          timestamp: { $gte: startDate }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalEmissions: { $sum: '$emissionsGCO2' },
+          totalEnergy: { $sum: '$energyKWh' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Get cloud workload stats
+    const cloudStats = await CloudWorkload.aggregate([
+      {
+        $match: {
+          user: req.user.id,
+          startTime: { $gte: startDate }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalSavings: { $sum: '$savingsGCO2' },
+          totalCost: { $sum: '$estimatedCost' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    const local = localStats[0] || { totalEmissions: 0, totalEnergy: 0, count: 0 };
+    const cloud = cloudStats[0] || { totalSavings: 0, totalCost: 0, count: 0 };
+    
     res.json({
       period,
-      dateRange: {
-        start: startDate,
-        end: now
+      local: {
+        totalEmissions: parseFloat(local.totalEmissions.toFixed(2)),
+        totalEnergy: parseFloat(local.totalEnergy.toFixed(6)),
+        sessionCount: local.count
       },
-      summary: {
-        totalEmissions: totalEmissions / 1000, // kg
-        totalEnergy,
-        sessionsCount,
-        avgPerSession: avgPerSession / 1000, // kg
-        comparisonToAverage: comparisonToAverage.toFixed(1),
-        trend
+      cloud: {
+        totalSavings: parseFloat(cloud.totalSavings.toFixed(2)),
+        totalCost: parseFloat(cloud.totalCost.toFixed(4)),
+        workloadCount: cloud.count
       },
-      impact,
-      recommendations,
-      chartData: emissions.map(e => ({
-        date: e.timestamp,
-        emissions: e.emissions_gco2,
-        energy: e.energy_kwh
-      }))
+      netEmissions: parseFloat((local.totalEmissions - cloud.totalSavings).toFixed(2))
     });
-
   } catch (error) {
-    console.error('Report summary error:', error);
-    res.status(500).json({ message: 'Error generating report summary' });
+    console.error('Error generating summary:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Get detailed insights and AI-powered recommendations
+// Get insights
 router.get('/insights', auth, async (req, res) => {
   try {
-    const emissions = await Emission.find({ user: req.user._id })
-      .sort({ timestamp: -1 })
-      .limit(100);
-
-    if (emissions.length === 0) {
-      return res.json({
-        insights: [],
-        recommendations: ['Start tracking your emissions to get personalized insights.']
-      });
-    }
-
-    const insights = [];
-    const recommendations = [];
-
-    // Analyze usage patterns
-    const hourlyUsage = {};
-    emissions.forEach(e => {
-      const hour = new Date(e.timestamp).getHours();
-      hourlyUsage[hour] = (hourlyUsage[hour] || 0) + e.emissions_gco2;
-    });
-
-    const peakHour = Object.keys(hourlyUsage).reduce((a, b) => 
-      hourlyUsage[a] > hourlyUsage[b] ? a : b
-    );
-
-    insights.push({
-      type: 'usage_pattern',
-      title: 'Peak Usage Time',
-      description: `Your highest emissions occur around ${peakHour}:00. Consider scheduling heavy tasks during off-peak hours.`,
-      icon: '⏰'
-    });
-
-    // Detect anomalies
-    const avgEmission = emissions.reduce((sum, e) => sum + e.emissions_gco2, 0) / emissions.length;
-    const highEmissionSessions = emissions.filter(e => e.emissions_gco2 > avgEmission * 2);
+    // Get data from last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
-    if (highEmissionSessions.length > 0) {
+    const emissions = await Emission.find({
+      user: req.user.id,
+      timestamp: { $gte: thirtyDaysAgo }
+    }).sort({ timestamp: -1 });
+    
+    const workloads = await CloudWorkload.find({
+      user: req.user.id,
+      startTime: { $gte: thirtyDaysAgo }
+    }).sort({ startTime: -1 });
+    
+    const insights = [];
+    
+    // Total emissions insight
+    const totalEmissions = emissions.reduce((sum, e) => sum + e.emissionsGCO2, 0);
+    insights.push({
+      type: 'total',
+      title: 'Total Carbon Footprint',
+      value: `${totalEmissions.toFixed(2)} gCO₂`,
+      description: `Your total emissions in the last 30 days`,
+      trend: totalEmissions > 1000 ? 'high' : 'moderate'
+    });
+    
+    // Cloud savings insight
+    const totalSavings = workloads.reduce((sum, w) => sum + w.savingsGCO2, 0);
+    if (totalSavings > 0) {
       insights.push({
-        type: 'anomaly',
-        title: 'High Emission Sessions Detected',
-        description: `${highEmissionSessions.length} sessions had unusually high emissions. Review these sessions for optimization opportunities.`,
-        icon: '⚠️'
+        type: 'savings',
+        title: 'Cloud Carbon Savings',
+        value: `${totalSavings.toFixed(2)} gCO₂`,
+        description: `Saved by using low-carbon cloud regions`,
+        trend: 'positive'
       });
     }
-
-    // Weekly trend
-    const lastWeek = emissions.slice(0, Math.min(emissions.length, 7));
-    const weekTotal = lastWeek.reduce((sum, e) => sum + e.emissions_gco2, 0);
-    const weeklyAvg = weekTotal / 7;
-
+    
+    // Average daily emissions
+    const avgDaily = totalEmissions / 30;
     insights.push({
-      type: 'trend',
-      title: 'Weekly Average',
-      description: `Your average daily emissions this week: ${(weeklyAvg / 1000).toFixed(3)} kg CO₂`,
-      icon: '📊'
+      type: 'average',
+      title: 'Daily Average',
+      value: `${avgDaily.toFixed(2)} gCO₂`,
+      description: 'Average emissions per day',
+      trend: avgDaily > 50 ? 'high' : 'moderate'
     });
-
-    // Generate recommendations
-    if (weeklyAvg > avgEmission) {
-      recommendations.push('Your emissions increased this week. Consider reviewing your recent activities.');
+    
+    // Most used cloud provider
+    if (workloads.length > 0) {
+      const providerCounts = workloads.reduce((acc, w) => {
+        acc[w.cloudProvider] = (acc[w.cloudProvider] || 0) + 1;
+        return acc;
+      }, {});
+      
+      const mostUsed = Object.entries(providerCounts).sort((a, b) => b[1] - a[1])[0];
+      
+      insights.push({
+        type: 'cloud',
+        title: 'Most Used Provider',
+        value: mostUsed[0].toUpperCase(),
+        description: `${mostUsed[1]} workloads executed`,
+        trend: 'neutral'
+      });
     }
-
-    recommendations.push('Enable dark mode to reduce screen energy consumption.');
-    recommendations.push('Close background applications when not in use.');
-    recommendations.push('Consider upgrading to energy-efficient hardware.');
-
-    res.json({
-      insights,
-      recommendations,
-      stats: {
-        totalSessions: emissions.length,
-        avgEmission: avgEmission / 1000,
-        peakHour: parseInt(peakHour)
-      }
-    });
-
+    
+    res.json({ insights });
   } catch (error) {
-    console.error('Insights error:', error);
-    res.status(500).json({ message: 'Error generating insights' });
+    console.error('Error generating insights:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Get progress tracking data
+// Get progress tracking
 router.get('/progress', auth, async (req, res) => {
   try {
-    const emissions = await Emission.find({ user: req.user._id })
-      .sort({ timestamp: 1 });
-
-    if (emissions.length === 0) {
-      return res.json({
-        progress: [],
-        achievements: []
-      });
-    }
-
-    // Calculate monthly progress
-    const monthlyData = {};
-    emissions.forEach(e => {
-      const monthKey = new Date(e.timestamp).toISOString().substring(0, 7); // YYYY-MM
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = {
-          emissions: 0,
-          energy: 0,
-          sessions: 0
-        };
+    // Get last 30 days of data, grouped by day
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const dailyEmissions = await Emission.aggregate([
+      {
+        $match: {
+          user: req.user.id,
+          timestamp: { $gte: thirtyDaysAgo }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$timestamp' }
+          },
+          totalEmissions: { $sum: '$emissionsGCO2' },
+          totalEnergy: { $sum: '$energyKWh' },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { _id: 1 }
       }
-      monthlyData[monthKey].emissions += e.emissions_gco2;
-      monthlyData[monthKey].energy += e.energy_kwh;
-      monthlyData[monthKey].sessions += 1;
-    });
-
-    const progress = Object.keys(monthlyData).map(month => ({
-      month,
-      ...monthlyData[month]
+    ]);
+    
+    const dailySavings = await CloudWorkload.aggregate([
+      {
+        $match: {
+          user: req.user.id,
+          startTime: { $gte: thirtyDaysAgo }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$startTime' }
+          },
+          totalSavings: { $sum: '$savingsGCO2' }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      }
+    ]);
+    
+    // Combine data
+    const savingsMap = dailySavings.reduce((acc, item) => {
+      acc[item._id] = item.totalSavings;
+      return acc;
+    }, {});
+    
+    const progress = dailyEmissions.map(item => ({
+      date: item._id,
+      emissions: parseFloat(item.totalEmissions.toFixed(2)),
+      savings: parseFloat((savingsMap[item._id] || 0).toFixed(2)),
+      net: parseFloat((item.totalEmissions - (savingsMap[item._id] || 0)).toFixed(2)),
+      sessions: item.count
     }));
-
-    // Calculate achievements
-    const achievements = [];
-    const totalSessions = emissions.length;
-    const totalEmissionsKg = emissions.reduce((sum, e) => sum + e.emissions_gco2, 0) / 1000;
-
-    if (totalSessions >= 10) {
-      achievements.push({
-        id: 'first_10',
-        title: 'Getting Started',
-        description: 'Completed 10 tracking sessions',
-        icon: '🎯',
-        unlockedAt: emissions[9].timestamp
-      });
-    }
-
-    if (totalSessions >= 50) {
-      achievements.push({
-        id: 'half_century',
-        title: 'Consistent Tracker',
-        description: 'Completed 50 tracking sessions',
-        icon: '🏆',
-        unlockedAt: emissions[49].timestamp
-      });
-    }
-
-    if (totalEmissionsKg < 1) {
-      achievements.push({
-        id: 'low_carbon',
-        title: 'Eco Warrior',
-        description: 'Maintained low carbon emissions',
-        icon: '🌱'
-      });
-    }
-
-    res.json({
-      progress,
-      achievements,
-      summary: {
-        totalSessions,
-        totalEmissionsKg: totalEmissionsKg.toFixed(3),
-        firstSession: emissions[0].timestamp,
-        latestSession: emissions[emissions.length - 1].timestamp
-      }
-    });
-
+    
+    res.json({ progress });
   } catch (error) {
-    console.error('Progress error:', error);
-    res.status(500).json({ message: 'Error fetching progress data' });
+    console.error('Error generating progress:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

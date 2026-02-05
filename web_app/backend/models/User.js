@@ -1,35 +1,67 @@
+// web_app/backend/models/User.js
+
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-const UserSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
   email: {
     type: String,
     required: true,
     unique: true,
-    lowercase: true
+    lowercase: true,
+    trim: true
   },
   password: {
     type: String,
-    required: true
-  },
-  name: {
-    type: String,
-    required: true
+    required: true,
+    minlength: 6
   },
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  preferences: {
+    carbonGoal: {
+      type: Number,
+      default: 1000 // gCO2 per day
+    },
+    notifications: {
+      type: Boolean,
+      default: true
+    }
+  }
+}, {
+  timestamps: true
+});
+
+// Hash password before saving
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
   }
 });
 
-UserSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 12);
-  next();
-});
-
-UserSchema.methods.comparePassword = async function(candidatePassword) {
+// Compare password method
+userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-module.exports = mongoose.model('User', UserSchema);
+// Don't return password in JSON
+userSchema.methods.toJSON = function() {
+  const user = this.toObject();
+  delete user.password;
+  return user;
+};
+
+module.exports = mongoose.model('User', userSchema);
