@@ -1,41 +1,57 @@
 carbon-tracker-app/
-├── python_app/                    # Your existing Python GUI app
+├── python_app/
 │   ├── app.py
 │   ├── auth.py
 │   ├── tracker.py
 │   ├── config.py
-│   └── requirements.txt
-├── web_app/                       # MERN Stack Web Application
+│   ├── cloud_service.py
+│   ├── test_cloud_integration.py
+│   ├── requirements.txt
+│   ├── .env
+│   └── .env.example
+├── web_app/
 │   ├── backend/
 │   │   ├── models/
 │   │   │   ├── User.js
-│   │   │   └── Emission.js
+│   │   │   ├── Emission.js
+│   │   │   ├── CloudRegion.js
+│   │   │   └── CloudWorkload.js
 │   │   ├── routes/
 │   │   │   ├── auth.js
-│   │   │   └── emissions.js
+│   │   │   ├── emissions.js
+│   │   │   ├── reports.js
+│   │   │   └── cloud.js
 │   │   ├── middleware/
 │   │   │   └── auth.js
-│   │   ├── config/
-│   │   │   └── database.js
-│   │   ├── .env
+│   │   ├── services/
+│   │   │   └── cloudManager.js
+│   │   ├── server.js
 │   │   ├── package.json
-│   │   └── server.js                 # (Same backend as before)
-│   └── frontend/                  # Vite React Frontend
-│       ├── public/
-│       │   └── vite.svg
+│   │   ├── .env
+│   │   ├── .env.example
+│   │   └── .gitignore
+│   └── frontend/
 │       ├── src/
 │       │   ├── components/
 │       │   │   ├── Login.jsx
 │       │   │   ├── Signup.jsx
 │       │   │   ├── Dashboard.jsx
-│       │   │   └── Navigation.jsx
+│       │   │   ├── Navigation.jsx
+│       │   │   ├── CloudOptimization.jsx
+│       │   │   └── Reports/
+│       │   │       ├── ReportSummary.jsx
+│       │   │       ├── ReportInsights.jsx
+│       │   │       └── ReportProgress.jsx
 │       │   ├── services/
 │       │   │   └── api.js
 │       │   ├── App.jsx
 │       │   ├── App.css
 │       │   ├── main.jsx
 │       │   └── index.css
+│       ├── index.html
 │       ├── package.json
 │       ├── vite.config.js
-│       └── .env
-└── README.md
+│       ├── .env
+│       └── .env.example
+├── README.md
+└── SETUP_GUIDE.md
