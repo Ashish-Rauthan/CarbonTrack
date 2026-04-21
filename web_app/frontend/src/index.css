@@ -1,4 +1,5 @@
 @import "tailwindcss";
+
 * {
   margin: 0;
   padding: 0;
@@ -6,39 +7,47 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  background: #f9f9f8;
   min-height: 100vh;
-  color: #e0e0e0;
-}
-
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  color: #191c1c;
 }
 
 #root {
   min-height: 100vh;
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 10px;
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f3f4f3; }
+::-webkit-scrollbar-thumb { background: #c1c8c2; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #717973; }
+
+/* Material Symbols */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
 }
 
-::-webkit-scrollbar-track {
-  background: #2d2d2d;
+/* Sidebar margin at desktop */
+@media (max-width: 767px) {
+  .main-content-area {
+    margin-left: 0 !important;
+  }
 }
 
-::-webkit-scrollbar-thumb {
-  background: #4CAF50;
-  border-radius: 5px;
+/* Loading spinner utility */
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e7e8e7;
+  border-radius: 50%;
+  border-top-color: #012d1d;
+  animation: global-spin 0.8s linear infinite;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #45a049;
+@keyframes global-spin {
+  to { transform: rotate(360deg); }
 }

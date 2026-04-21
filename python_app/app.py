@@ -16,6 +16,69 @@ from tracker import TrackerSession
 from cloud_service import CloudService
 from config import DASHBOARD_URL, ENABLE_CLOUD_FEATURES, validate_cloud_config
 
+# ── Free-tier instance type per AWS region ────────────────────────────────────
+# Mirrors the same mapping in cloudManager.js — keep in sync.
+REGION_FREE_TIER_INSTANCE = {
+    # T2 regions
+    'us-east-1':      't2.micro',
+    'us-east-2':      't2.micro',
+    'us-west-1':      't2.micro',
+    'us-west-2':      't2.micro',
+    'eu-west-1':      't2.micro',
+    'eu-west-2':      't2.micro',
+    'eu-central-1':   't2.micro',
+    'ap-northeast-1': 't2.micro',
+    'ap-southeast-1': 't2.micro',
+    'ap-southeast-2': 't2.micro',
+    'sa-east-1':      't2.micro',
+    # T3 regions
+    'eu-north-1':     't3.micro',
+    'ca-central-1':   't3.micro',
+    'ap-south-1':     't3.micro',
+    'ap-northeast-2': 't3.micro',
+    'ap-northeast-3': 't3.micro',
+    'eu-west-3':      't3.micro',
+    'eu-south-1':     't3.micro',
+    'af-south-1':     't3.micro',
+    'me-south-1':     't3.micro',
+}
+
+
+def get_free_tier_instance(region_code: str) -> str:
+    """Return the free-tier-eligible instance type for a given AWS region."""
+    return REGION_FREE_TIER_INSTANCE.get(region_code, 't3.micro')
+
+
+def resolve_instance_type(requested: str, region_code: str) -> str:
+    """
+    Return the instance type that should actually be launched.
+    Upgrades t2.micro → t3.micro silently when the region only supports T3.
+    """
+    free_tier = get_free_tier_instance(region_code)
+    if requested == 't2.micro' and free_tier == 't3.micro':
+        return 't3.micro'
+    return requested or free_tier
+
+
+# ── Instance types available per region ───────────────────────────────────────
+T2_INSTANCE_TYPES = ['t2.micro', 't2.small', 't3.micro', 't3.small']
+T3_INSTANCE_TYPES = ['t3.micro', 't3.small']          # t2 not free-tier here
+
+T3_ONLY_REGIONS = {
+    'eu-north-1', 'ca-central-1', 'ap-south-1',
+    'ap-northeast-2', 'ap-northeast-3', 'eu-west-3',
+    'eu-south-1', 'af-south-1', 'me-south-1',
+}
+
+
+def get_instance_types_for_region(region_code: str) -> list:
+    if region_code in T3_ONLY_REGIONS:
+        return T3_INSTANCE_TYPES
+    return T2_INSTANCE_TYPES
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 class LoginWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -26,66 +89,41 @@ class LoginWindow(QWidget):
     def setup_ui(self):
         layout = QVBoxLayout()
 
-        # Title
         self.title = QLabel("🌍 Carbon Tracker Login")
         title_font = QFont()
         title_font.setPointSize(18)
         title_font.setBold(True)
         self.title.setFont(title_font)
         self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        # Subtitle
+
         subtitle = QLabel("Track and optimize your carbon footprint")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle.setStyleSheet("color: #666; margin-bottom: 20px;")
-        
-        # Email input
+
         self.email_input = QLineEdit()
         self.email_input.setPlaceholderText("Email")
         self.email_input.setStyleSheet("padding: 10px; font-size: 14px;")
-        
-        # Password input
+
         self.pass_input = QLineEdit()
         self.pass_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.pass_input.setPlaceholderText("Password")
         self.pass_input.setStyleSheet("padding: 10px; font-size: 14px;")
-        
-        # Login button
+
         self.login_btn = QPushButton("Login")
         self.login_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                padding: 10px;
-                font-size: 14px;
-                font-weight: bold;
-                border: none;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-            QPushButton:pressed {
-                background-color: #3d8b40;
-            }
-        """)
-        
-        # Signup link
-        self.signup_link = QPushButton("Create Account (Website)")
-        self.signup_link.setStyleSheet("""
-            QPushButton {
-                background-color: transparent;
-                color: #4CAF50;
-                padding: 10px;
-                border: 1px solid #4CAF50;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #f0f0f0;
-            }
+            QPushButton { background-color:#4CAF50; color:white; padding:10px;
+                          font-size:14px; font-weight:bold; border:none; border-radius:5px; }
+            QPushButton:hover   { background-color:#45a049; }
+            QPushButton:pressed { background-color:#3d8b40; }
         """)
 
-        # Add widgets to layout
+        self.signup_link = QPushButton("Create Account (Website)")
+        self.signup_link.setStyleSheet("""
+            QPushButton { background-color:transparent; color:#4CAF50;
+                          padding:10px; border:1px solid #4CAF50; border-radius:5px; }
+            QPushButton:hover { background-color:#f0f0f0; }
+        """)
+
         layout.addWidget(self.title)
         layout.addWidget(subtitle)
         layout.addSpacing(20)
@@ -99,25 +137,23 @@ class LoginWindow(QWidget):
         layout.addStretch()
 
         self.setLayout(layout)
-
-        # Connect signals
         self.login_btn.clicked.connect(self.do_login)
         self.signup_link.clicked.connect(lambda: webbrowser.open(DASHBOARD_URL))
         self.pass_input.returnPressed.connect(self.do_login)
 
     def do_login(self):
-        email = self.email_input.text().strip()
+        email    = self.email_input.text().strip()
         password = self.pass_input.text().strip()
-        
+
         if not email or not password:
             QMessageBox.warning(self, "Login Failed", "Please enter both email and password")
             return
-            
+
         self.login_btn.setEnabled(False)
-        self.login_btn.setText("Logging in...")
-        
+        self.login_btn.setText("Logging in…")
+
         token = login(email, password)
-        
+
         if token:
             self.hide()
             self.tracker_window = TrackerWindow(token, email)
@@ -128,166 +164,124 @@ class LoginWindow(QWidget):
             self.login_btn.setText("Login")
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+
 class TrackerWindow(QWidget):
     def __init__(self, token, user_id):
         super().__init__()
         self.setWindowTitle("Carbon Tracker Dashboard")
         self.resize(900, 700)
-        self.token = token
-        self.user_id = user_id
-        self.tracker = None
+        self.token         = token
+        self.user_id       = user_id
+        self.tracker       = None
         self.cloud_service = CloudService(token)
-        self.regions_data = {}
-        self.savings_data = None
+        self.regions_data  = {}
+        self.savings_data  = None
         self.active_instances = []
-        
-        # Check cloud configuration
+
         self.cloud_config = validate_cloud_config()
-        
         self.setup_ui()
-        
-        # Auto-refresh timer for instances
+
         self.refresh_timer = QTimer()
         self.refresh_timer.timeout.connect(self.refresh_instances)
-        self.refresh_timer.start(30000)  # Refresh every 30 seconds
+        self.refresh_timer.start(30_000)
+
+    # ── UI setup ──────────────────────────────────────────────────────────────
 
     def setup_ui(self):
         main_layout = QVBoxLayout()
-        
-        # Header
+
         header = QLabel("🌍 Carbon Tracker Dashboard")
         header_font = QFont()
         header_font.setPointSize(16)
         header_font.setBold(True)
         header.setFont(header_font)
         header.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        header.setStyleSheet("padding: 10px; background-color: #4CAF50; color: white;")
+        header.setStyleSheet("padding:10px; background-color:#4CAF50; color:white;")
         main_layout.addWidget(header)
-        
-        # Create tab widget
+
         self.tabs = QTabWidget()
         self.tabs.setStyleSheet("""
-            QTabWidget::pane {
-                border: 1px solid #ccc;
-                border-radius: 5px;
-            }
-            QTabBar::tab {
-                padding: 10px 20px;
-                margin: 2px;
-            }
-            QTabBar::tab:selected {
-                background-color: #4CAF50;
-                color: white;
-            }
+            QTabWidget::pane { border:1px solid #ccc; border-radius:5px; }
+            QTabBar::tab     { padding:10px 20px; margin:2px; }
+            QTabBar::tab:selected { background-color:#4CAF50; color:white; }
         """)
-        
-        # Tab 1: Local Tracking
+
         self.tracking_tab = QWidget()
         self.init_tracking_tab()
-        
-        # Tab 2 & 3: Cloud Optimization (only if enabled)
+
         if ENABLE_CLOUD_FEATURES:
             self.cloud_tab = QWidget()
             self.init_cloud_tab()
             self.tabs.addTab(self.tracking_tab, "📊 Local Tracking")
-            self.tabs.addTab(self.cloud_tab, "☁️ Cloud Optimization")
-            
-            # Tab 3: Active Instances
+            self.tabs.addTab(self.cloud_tab,    "☁️ Cloud Optimization")
+
             self.instances_tab = QWidget()
             self.init_instances_tab()
             self.tabs.addTab(self.instances_tab, "🖥️ Active Instances")
         else:
             self.tabs.addTab(self.tracking_tab, "📊 Local Tracking")
-        
+
         main_layout.addWidget(self.tabs)
         self.setLayout(main_layout)
 
     def init_tracking_tab(self):
         layout = QVBoxLayout()
-        
-        # Info label
+
         self.label = QLabel("Press Start to begin tracking your device emissions.")
         self.label.setWordWrap(True)
-        self.label.setStyleSheet("margin: 10px; font-size: 14px; padding: 20px; background-color: #000000; border-radius: 5px;")
+        self.label.setStyleSheet(
+            "margin:10px; font-size:14px; padding:20px; "
+            "background-color:#000000; border-radius:5px;"
+        )
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        # Buttons
+
         button_layout = QVBoxLayout()
-        
+
         self.start_btn = QPushButton("▶️ Start Tracking")
         self.start_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                padding: 15px;
-                font-size: 16px;
-                font-weight: bold;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-            QPushButton:disabled {
-                background-color: #ccc;
-            }
+            QPushButton { background-color:#4CAF50; color:white; padding:15px;
+                          font-size:16px; font-weight:bold; border-radius:5px; }
+            QPushButton:hover    { background-color:#45a049; }
+            QPushButton:disabled { background-color:#ccc; }
         """)
-        
+
         self.stop_btn = QPushButton("⏹️ Stop and Save Data")
         self.stop_btn.setEnabled(False)
         self.stop_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f44336;
-                color: white;
-                padding: 15px;
-                font-size: 16px;
-                font-weight: bold;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #da190b;
-            }
-            QPushButton:disabled {
-                background-color: #ccc;
-            }
+            QPushButton { background-color:#f44336; color:white; padding:15px;
+                          font-size:16px; font-weight:bold; border-radius:5px; }
+            QPushButton:hover    { background-color:#da190b; }
+            QPushButton:disabled { background-color:#ccc; }
         """)
-        
+
         self.view_dashboard_btn = QPushButton("🌐 View Web Dashboard")
         self.view_dashboard_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #2196F3;
-                color: white;
-                padding: 15px;
-                font-size: 16px;
-                font-weight: bold;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #0b7dda;
-            }
+            QPushButton { background-color:#2196F3; color:white; padding:15px;
+                          font-size:16px; font-weight:bold; border-radius:5px; }
+            QPushButton:hover { background-color:#0b7dda; }
         """)
-        
+
         button_layout.addWidget(self.start_btn)
         button_layout.addWidget(self.stop_btn)
         button_layout.addWidget(self.view_dashboard_btn)
-        
+
         layout.addWidget(self.label)
         layout.addLayout(button_layout)
         layout.addStretch()
-        
+
         self.tracking_tab.setLayout(layout)
-        
-        # Connect signals
+
         self.start_btn.clicked.connect(self.start_tracking)
         self.stop_btn.clicked.connect(self.stop_tracking)
         self.view_dashboard_btn.clicked.connect(lambda: webbrowser.open(DASHBOARD_URL))
 
     def init_cloud_tab(self):
-        scroll = QScrollArea()
+        scroll        = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll_widget = QWidget()
-        layout = QVBoxLayout(scroll_widget)
-        
-        # Title
+        layout        = QVBoxLayout(scroll_widget)
+
         title = QLabel("☁️ Cloud Carbon Optimization")
         title_font = QFont()
         title_font.setPointSize(16)
@@ -295,337 +289,381 @@ class TrackerWindow(QWidget):
         title.setFont(title_font)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
-        
-        # Description
+
         desc = QLabel(
             "Offload your computational tasks to AWS regions with lower carbon intensity.\n"
-            "This helps reduce your overall carbon footprint by utilizing renewable energy sources."
+            "This helps reduce your overall carbon footprint by utilising renewable energy sources."
         )
         desc.setWordWrap(True)
-        desc.setStyleSheet("color: #666; padding: 10px; background-color: #f9f9f9; border-radius: 5px; margin: 10px;")
+        desc.setStyleSheet(
+            "color:#666; padding:10px; background-color:#f9f9f9; "
+            "border-radius:5px; margin:10px;"
+        )
         layout.addWidget(desc)
-        
-        # Cloud provider status
-        status_group = QGroupBox("AWS Provider Status")
+
+        # ── Provider status ───────────────────────────────────────────────────
+        status_group  = QGroupBox("AWS Provider Status")
         status_layout = QGridLayout()
-        
+
         aws_status = "✓ Configured" if self.cloud_config['aws'] else "✗ Not Configured"
-        
         status_layout.addWidget(QLabel("AWS:"), 0, 0)
         aws_label = QLabel(aws_status)
-        aws_label.setStyleSheet(f"color: {'green' if self.cloud_config['aws'] else 'red'}; font-weight: bold;")
+        aws_label.setStyleSheet(
+            f"color:{'green' if self.cloud_config['aws'] else 'red'}; font-weight:bold;"
+        )
         status_layout.addWidget(aws_label, 0, 1)
-        
-        # Test connection button
+
         self.test_aws_btn = QPushButton("Test AWS Connection")
         self.test_aws_btn.clicked.connect(lambda: self.test_cloud_connection('aws'))
         self.test_aws_btn.setEnabled(self.cloud_config['aws'])
         status_layout.addWidget(self.test_aws_btn, 0, 2)
-        
+
         status_group.setLayout(status_layout)
         layout.addWidget(status_group)
-        
-        # Region selection group
-        region_group = QGroupBox("Select AWS Region")
+
+        # ── Region selection ──────────────────────────────────────────────────
+        region_group  = QGroupBox("Select AWS Region")
         region_layout = QVBoxLayout()
-        
+
         provider_layout = QHBoxLayout()
         provider_layout.addWidget(QLabel("Filter:"))
         self.provider_combo = QComboBox()
         self.provider_combo.addItems(["AWS Only", "Show All (Reference)"])
         self.provider_combo.currentTextChanged.connect(self.load_regions)
         provider_layout.addWidget(self.provider_combo)
-        
+
         self.refresh_regions_btn = QPushButton("🔄 Refresh")
         self.refresh_regions_btn.clicked.connect(self.load_regions)
         provider_layout.addWidget(self.refresh_regions_btn)
         region_layout.addLayout(provider_layout)
-        
+
         region_layout.addWidget(QLabel("Available Regions (sorted by carbon intensity):"))
         self.region_combo = QComboBox()
         self.region_combo.setMinimumHeight(40)
+        # Update instance types when region changes
+        self.region_combo.currentTextChanged.connect(self._on_region_changed)
         region_layout.addWidget(self.region_combo)
-        
+
         region_group.setLayout(region_layout)
         layout.addWidget(region_group)
-        
-        # Workload configuration group
-        workload_group = QGroupBox("Workload Configuration")
+
+        # ── Workload config ───────────────────────────────────────────────────
+        workload_group  = QGroupBox("Workload Configuration")
         workload_layout = QGridLayout()
-        
+
         workload_layout.addWidget(QLabel("Workload Type:"), 0, 0)
         self.workload_type = QComboBox()
-        self.workload_type.addItems(["computation", "storage", "processing", "training", "batch"])
+        self.workload_type.addItems(
+            ["computation", "storage", "processing", "training", "batch"]
+        )
         workload_layout.addWidget(self.workload_type, 0, 1)
-        
+
         workload_layout.addWidget(QLabel("Instance Type:"), 1, 0)
         self.instance_type = QComboBox()
-        self.instance_type.addItems(["t2.micro", "t2.small", "t3.micro", "t3.small"])
+        self.instance_type.addItems(T2_INSTANCE_TYPES)   # updated when region changes
         workload_layout.addWidget(self.instance_type, 1, 1)
-        
-        workload_layout.addWidget(QLabel("Duration (hours):"), 2, 0)
+
+        # Small label that shows "⚠ t2.micro not free here – will use t3.micro"
+        self.instance_notice = QLabel("")
+        self.instance_notice.setStyleSheet("color: orange; font-size: 11px;")
+        self.instance_notice.setWordWrap(True)
+        workload_layout.addWidget(self.instance_notice, 2, 0, 1, 2)
+
+        workload_layout.addWidget(QLabel("Duration (hours):"), 3, 0)
         self.duration_spin = QDoubleSpinBox()
         self.duration_spin.setRange(0.1, 24.0)
         self.duration_spin.setValue(1.0)
         self.duration_spin.setSingleStep(0.5)
-        workload_layout.addWidget(self.duration_spin, 2, 1)
-        
-        workload_layout.addWidget(QLabel("Est. Power (watts):"), 3, 0)
+        workload_layout.addWidget(self.duration_spin, 3, 1)
+
+        workload_layout.addWidget(QLabel("Est. Power (watts):"), 4, 0)
         self.power_spin = QSpinBox()
         self.power_spin.setRange(1, 500)
         self.power_spin.setValue(100)
-        workload_layout.addWidget(self.power_spin, 3, 1)
-        
+        workload_layout.addWidget(self.power_spin, 4, 1)
+
         workload_group.setLayout(workload_layout)
         layout.addWidget(workload_group)
-        
-        # Calculate button
+
+        # Also update the notice when the instance type selector changes
+        self.instance_type.currentTextChanged.connect(self._update_instance_notice)
+
+        # ── Calculate button ──────────────────────────────────────────────────
         self.calculate_btn = QPushButton("💡 Calculate Savings")
         self.calculate_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #2196F3;
-                color: white;
-                padding: 12px;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #0b7dda;
-            }
+            QPushButton { background-color:#2196F3; color:white; padding:12px;
+                          font-size:14px; font-weight:bold; border-radius:5px; }
+            QPushButton:hover { background-color:#0b7dda; }
         """)
         self.calculate_btn.clicked.connect(self.calculate_savings)
         layout.addWidget(self.calculate_btn)
-        
-        # Results display
+
+        # ── Results ───────────────────────────────────────────────────────────
         self.results_text = QTextEdit()
         self.results_text.setReadOnly(True)
         self.results_text.setMaximumHeight(200)
-        self.results_text.setStyleSheet("background-color: #000000; padding: 10px; border-radius: 5px;")
+        self.results_text.setStyleSheet(
+            "background-color:#000000; padding:10px; border-radius:5px;"
+        )
         layout.addWidget(self.results_text)
-        
-        # Action buttons
+
+        # ── Action buttons ────────────────────────────────────────────────────
         button_layout = QHBoxLayout()
-        
+
         self.launch_instance_btn = QPushButton("🚀 Launch Real AWS Instance")
         self.launch_instance_btn.setEnabled(False)
         self.launch_instance_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                padding: 12px;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-            QPushButton:disabled {
-                background-color: #ccc;
-            }
+            QPushButton { background-color:#4CAF50; color:white; padding:12px;
+                          font-size:14px; font-weight:bold; border-radius:5px; }
+            QPushButton:hover    { background-color:#45a049; }
+            QPushButton:disabled { background-color:#ccc; }
         """)
         self.launch_instance_btn.clicked.connect(self.launch_cloud_instance)
-        
+
         self.submit_workload_btn = QPushButton("📝 Submit Workload (Simulated)")
         self.submit_workload_btn.setEnabled(False)
         self.submit_workload_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #ff9800;
-                color: white;
-                padding: 12px;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #e68900;
-            }
-            QPushButton:disabled {
-                background-color: #ccc;
-            }
+            QPushButton { background-color:#ff9800; color:white; padding:12px;
+                          font-size:14px; font-weight:bold; border-radius:5px; }
+            QPushButton:hover    { background-color:#e68900; }
+            QPushButton:disabled { background-color:#ccc; }
         """)
         self.submit_workload_btn.clicked.connect(self.submit_workload)
-        
+
         button_layout.addWidget(self.launch_instance_btn)
         button_layout.addWidget(self.submit_workload_btn)
         layout.addLayout(button_layout)
-        
-        # View workloads button
+
         self.view_workloads_btn = QPushButton("📋 View My Cloud Workloads")
         self.view_workloads_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #9C27B0;
-                color: white;
-                padding: 12px;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #7B1FA2;
-            }
+            QPushButton { background-color:#9C27B0; color:white; padding:12px;
+                          font-size:14px; font-weight:bold; border-radius:5px; }
+            QPushButton:hover { background-color:#7B1FA2; }
         """)
         self.view_workloads_btn.clicked.connect(self.view_workloads)
         layout.addWidget(self.view_workloads_btn)
-        
+
         layout.addStretch()
         scroll.setWidget(scroll_widget)
-        
+
         tab_layout = QVBoxLayout()
         tab_layout.addWidget(scroll)
         self.cloud_tab.setLayout(tab_layout)
-        
-        # Load regions on init
+
         self.load_regions()
 
     def init_instances_tab(self):
         layout = QVBoxLayout()
-        
-        # Title
+
         title = QLabel("🖥️ Active AWS Instances")
         title_font = QFont()
         title_font.setPointSize(14)
         title_font.setBold(True)
         title.setFont(title_font)
         layout.addWidget(title)
-        
-        # Info
+
         info = QLabel("Managed instances will appear here. Auto-refreshes every 30 seconds.")
-        info.setStyleSheet("color: #666; margin-bottom: 10px;")
+        info.setStyleSheet("color:#666; margin-bottom:10px;")
         layout.addWidget(info)
-        
-        # Refresh button
+
         refresh_btn = QPushButton("🔄 Refresh Now")
         refresh_btn.clicked.connect(self.refresh_instances)
         layout.addWidget(refresh_btn)
-        
-        # Instances table
+
         self.instances_table = QTableWidget()
         self.instances_table.setColumnCount(6)
-        self.instances_table.setHorizontalHeaderLabels([
-            "Provider", "Instance ID", "Type", "Status", "Region", "Actions"
-        ])
-        self.instances_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.instances_table.setHorizontalHeaderLabels(
+            ["Provider", "Instance ID", "Type", "Status", "Region", "Actions"]
+        )
+        self.instances_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
         self.instances_table.setAlternatingRowColors(True)
         layout.addWidget(self.instances_table)
-        
+
         self.instances_tab.setLayout(layout)
-        
-        # Initial load
         self.refresh_instances()
 
-    # Cloud Tab Methods
+    # ── Helper: update instance type list when region changes ─────────────────
+
+    def _get_selected_region_code(self) -> str:
+        """Return the AWS region code for the currently selected region combo item."""
+        text = self.region_combo.currentText()
+        if text in self.regions_data:
+            return self.regions_data[text].get('region', '')
+        return ''
+
+    def _on_region_changed(self, _text):
+        """Called when the region combo selection changes."""
+        region_code = self._get_selected_region_code()
+        if not region_code:
+            return
+
+        # Rebuild instance type list for the new region
+        types = get_instance_types_for_region(region_code)
+        current = self.instance_type.currentText()
+
+        self.instance_type.blockSignals(True)
+        self.instance_type.clear()
+        self.instance_type.addItems(types)
+        # Restore previous selection if still valid
+        if current in types:
+            self.instance_type.setCurrentText(current)
+        self.instance_type.blockSignals(False)
+
+        self._update_instance_notice()
+
+    def _update_instance_notice(self):
+        """Show an advisory when the selected instance type will be auto-upgraded."""
+        region_code   = self._get_selected_region_code()
+        selected_type = self.instance_type.currentText()
+        if not region_code:
+            self.instance_notice.setText("")
+            return
+
+        resolved = resolve_instance_type(selected_type, region_code)
+        if resolved != selected_type:
+            self.instance_notice.setText(
+                f"⚠️  {selected_type} is not free-tier eligible in {region_code}. "
+                f"Will automatically use {resolved}."
+            )
+        else:
+            free_tier = get_free_tier_instance(region_code)
+            if selected_type == free_tier:
+                self.instance_notice.setText(
+                    f"✅  {selected_type} is free-tier eligible in {region_code}."
+                )
+            else:
+                self.instance_notice.setText(
+                    f"ℹ️  {selected_type} may incur charges. "
+                    f"Free-tier type for this region: {free_tier}."
+                )
+
+    # ── Cloud tab methods ──────────────────────────────────────────────────────
+
     def test_cloud_connection(self, provider):
         result = self.cloud_service.test_connection(provider)
-        
+
         if result and result.get('success'):
             QMessageBox.information(
-                self, 
-                f"{provider.upper()} Connection", 
+                self,
+                f"{provider.upper()} Connection",
                 f"✓ Successfully connected to {provider.upper()}!\n\n"
                 f"Region: {result.get('region', 'N/A')}\n"
-                f"{result.get('message', '')}"
+                f"{result.get('message', '')}",
             )
         else:
             error_msg = result.get('error', 'Unknown error') if result else 'Connection failed'
             QMessageBox.warning(
-                self, 
-                f"{provider.upper()} Connection", 
+                self,
+                f"{provider.upper()} Connection",
                 f"✗ Failed to connect to {provider.upper()}\n\n"
                 f"Error: {error_msg}\n\n"
-                f"Please check your .env file and AWS credentials."
+                "Please check your .env file and AWS credentials.",
             )
 
     def load_regions(self):
-        filter_text = self.provider_combo.currentText()
+        filter_text    = self.provider_combo.currentText()
         provider_param = 'aws' if filter_text == "AWS Only" else None
-        
+
         self.refresh_regions_btn.setEnabled(False)
-        self.refresh_regions_btn.setText("Loading...")
-        
+        self.refresh_regions_btn.setText("Loading…")
+
         data = self.cloud_service.get_available_regions(provider_param)
-        
+
         self.refresh_regions_btn.setEnabled(True)
         self.refresh_regions_btn.setText("🔄 Refresh")
-        
+
         if data and 'regions' in data:
+            self.region_combo.blockSignals(True)
             self.region_combo.clear()
             self.regions_data = {}
-            
-            # Filter to only show AWS regions (available ones)
+
             aws_regions = [r for r in data['regions'] if r['provider'] == 'aws']
-            
+
             for region in aws_regions:
+                free_type = region.get(
+                    'freeTierInstanceType',
+                    get_free_tier_instance(region['region'])
+                )
                 display_text = (
                     f"{region['regionName']} "
                     f"({region['carbonIntensity']} gCO₂/kWh, "
-                    f"{region['renewablePercentage']}% renewable)"
+                    f"{region['renewablePercentage']}% renewable, "
+                    f"free: {free_type})"
                 )
                 self.region_combo.addItem(display_text)
                 self.regions_data[display_text] = region
-            
+
+            self.region_combo.blockSignals(False)
+
             if aws_regions:
-                rec = aws_regions[0]  # Greenest AWS region
+                rec = aws_regions[0]
+                free_type = rec.get(
+                    'freeTierInstanceType',
+                    get_free_tier_instance(rec['region'])
+                )
                 self.results_text.setPlainText(
                     f"💚 Greenest AWS Region (Recommended):\n\n"
-                    f"Provider: AWS\n"
-                    f"Region: {rec['regionName']} ({rec['region']})\n"
-                    f"Carbon Intensity: {rec['carbonIntensity']} gCO₂/kWh\n"
-                    f"Renewable Energy: {rec['renewablePercentage']}%\n"
-                    f"Country: {rec['country']}\n\n"
-                    f"Total AWS Regions Available: {len(aws_regions)}"
+                    f"Provider:          AWS\n"
+                    f"Region:            {rec['regionName']} ({rec['region']})\n"
+                    f"Carbon Intensity:  {rec['carbonIntensity']} gCO₂/kWh\n"
+                    f"Renewable Energy:  {rec['renewablePercentage']}%\n"
+                    f"Free Tier Type:    {free_type}\n"
+                    f"Country:           {rec['country']}\n\n"
+                    f"Total AWS Regions: {len(aws_regions)}"
                 )
+                # Trigger instance type update for the first region
+                self._on_region_changed(self.region_combo.currentText())
         else:
-            QMessageBox.warning(self, "Error", "Failed to load cloud regions.\n\nMake sure the backend is running and regions are seeded.")
+            QMessageBox.warning(
+                self, "Error",
+                "Failed to load cloud regions.\n\n"
+                "Make sure the backend is running and regions are seeded.",
+            )
 
     def calculate_savings(self):
         if not self.region_combo.currentText():
             QMessageBox.warning(self, "No Region", "Please select an AWS region first")
             return
-        
+
         selected_region_text = self.region_combo.currentText()
         if selected_region_text not in self.regions_data:
             QMessageBox.warning(self, "Error", "Invalid region selection")
             return
-        
-        region = self.regions_data[selected_region_text]
-        
+
+        region   = self.regions_data[selected_region_text]
         duration = self.duration_spin.value()
-        power = self.power_spin.value()
-        workload_type = self.workload_type.currentText()
-        
+        power    = self.power_spin.value()
+
         self.calculate_btn.setEnabled(False)
-        self.calculate_btn.setText("Calculating...")
-        
+        self.calculate_btn.setText("Calculating…")
+
         try:
             data = self.cloud_service.calculate_savings(
-                workload_type, duration, power, region['_id']
+                self.workload_type.currentText(), duration, power, region['_id']
             )
-            
+
             self.calculate_btn.setEnabled(True)
             self.calculate_btn.setText("💡 Calculate Savings")
-            
+
             if data:
-                # Print debug info
-                print("API Response:", data)
-                
                 self.savings_data = data
                 self.savings_data['selected_region'] = region
-                
-                # Safely extract values with fallbacks
-                savings_gco2 = str(data.get('savingsGCO2', data.get('savings', '0')))
-                savings_percent = str(data.get('savingsPercentage', '0'))
-                local_emissions = str(data.get('localEmissions', '0'))
-                cloud_emissions = str(data.get('cloudEmissions', '0'))
-                energy_kwh = str(data.get('energyKWh', '0'))
-                
-                # Get region info safely
-                region_info = data.get('region', {})
-                region_name = region_info.get('name', region.get('regionName', 'Unknown'))
-                carbon_intensity = region_info.get('carbonIntensity', region.get('carbonIntensity', 'N/A'))
-                renewable_pct = region_info.get('renewablePercentage', region.get('renewablePercentage', 'N/A'))
-                
+
+                savings_gco2      = str(data.get('savingsGCO2',      '0'))
+                savings_percent   = str(data.get('savingsPercentage', '0'))
+                local_emissions   = str(data.get('localEmissions',   '0'))
+                cloud_emissions   = str(data.get('cloudEmissions',   '0'))
+                energy_kwh        = str(data.get('energyKWh',        '0'))
+
+                region_info    = data.get('region', {})
+                region_name    = region_info.get('name',               region.get('regionName', 'Unknown'))
+                carbon_int     = region_info.get('carbonIntensity',    region.get('carbonIntensity', 'N/A'))
+                renewable_pct  = region_info.get('renewablePercentage', region.get('renewablePercentage', 'N/A'))
+                free_type      = region_info.get('freeTierInstanceType',
+                                                  get_free_tier_instance(region.get('region', '')))
+
                 result_text = (
                     f"📊 Carbon Savings Calculation:\n"
                     f"{'='*50}\n\n"
@@ -635,186 +673,178 @@ class TrackerWindow(QWidget):
                     f"💚 SAVINGS:       {savings_gco2} gCO₂ ({savings_percent}%)\n\n"
                     f"{'='*50}\n"
                     f"Selected AWS Region:\n"
-                    f"  • Provider: AWS\n"
-                    f"  • Location: {region_name}\n"
-                    f"  • Carbon Intensity: {carbon_intensity} gCO₂/kWh\n"
+                    f"  • Provider:         AWS\n"
+                    f"  • Location:         {region_name}\n"
+                    f"  • Carbon Intensity: {carbon_int} gCO₂/kWh\n"
                     f"  • Renewable Energy: {renewable_pct}%\n"
+                    f"  • Free Tier Type:   {free_type}\n"
                 )
-                
+
                 self.results_text.setPlainText(result_text)
                 self.launch_instance_btn.setEnabled(True)
                 self.submit_workload_btn.setEnabled(True)
             else:
-                QMessageBox.warning(self, "Error", "Failed to calculate savings.\n\nMake sure the backend is running.")
-                
+                QMessageBox.warning(
+                    self, "Error",
+                    "Failed to calculate savings.\n\nMake sure the backend is running.",
+                )
+
         except Exception as e:
             self.calculate_btn.setEnabled(True)
             self.calculate_btn.setText("💡 Calculate Savings")
-            print(f"Error in calculate_savings: {e}")
             import traceback
             traceback.print_exc()
-            QMessageBox.warning(
-                self, 
-                "Calculation Error", 
-                f"An error occurred:\n\n{str(e)}\n\nCheck the console for details."
-            )
+            QMessageBox.warning(self, "Calculation Error", f"An error occurred:\n\n{e}")
 
     def launch_cloud_instance(self):
         if not self.savings_data:
             QMessageBox.warning(self, "Error", "Please calculate savings first")
             return
-        
-        region_data = self.savings_data['selected_region']
-        provider = 'aws'
-        aws_region = region_data['region']
-        instance_type = self.instance_type.currentText()
-        
-        # Confirm launch
+
+        region_data   = self.savings_data['selected_region']
+        aws_region    = region_data['region']
+        requested_type = self.instance_type.currentText()
+        resolved_type  = resolve_instance_type(requested_type, aws_region)
+
+        # Build the confirmation message
+        upgrade_notice = ""
+        if resolved_type != requested_type:
+            upgrade_notice = (
+                f"\n⚠️  Note: {requested_type} is not free-tier in {aws_region}.\n"
+                f"   Instance will be launched as {resolved_type} instead.\n"
+            )
+
+        est_cost = 0.0116 if resolved_type.startswith('t2') else 0.0104
         reply = QMessageBox.question(
             self,
             "Launch Real AWS Instance",
             f"⚠️ WARNING: This will create a REAL AWS EC2 instance!\n\n"
-            f"Instance Type: {instance_type}\n"
+            f"Instance Type: {resolved_type}\n"
             f"Region: {region_data['regionName']} ({aws_region})\n"
             f"Est. Duration: {self.duration_spin.value()} hours\n"
-            f"Est. Cost: ~${0.0116 * self.duration_spin.value():.4f}\n"
-            f"Est. Savings: {self.savings_data['savingsGCO2']} gCO₂\n\n"
-            f"Make sure to TERMINATE the instance when done!\n\n"
-            f"Continue?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            f"Est. Cost: ~${est_cost * self.duration_spin.value():.4f}\n"
+            f"Est. Savings: {self.savings_data.get('savingsGCO2', '?')} gCO₂\n"
+            f"{upgrade_notice}\n"
+            "Make sure to TERMINATE the instance when done!\n\n"
+            "Continue?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
-        
+
         if reply == QMessageBox.StandardButton.No:
             return
-        
+
         self.launch_instance_btn.setEnabled(False)
-        self.launch_instance_btn.setText("Launching...")
-        
+        self.launch_instance_btn.setText("Launching…")
+
         try:
-            # Debug: print what we're sending
-            payload = {
-                "provider": provider,
-                "region": aws_region,
-                "instanceType": instance_type,
-                "workloadType": self.workload_type.currentText(),
-                "estimatedDurationHours": self.duration_spin.value()
-            }
-            print(f"Sending launch request with payload: {payload}")
-            
             result = self.cloud_service.launch_instance(
-                provider=provider,
+                provider='aws',
                 region=aws_region,
                 zone=None,
-                instance_type=instance_type,
+                instance_type=resolved_type,   # send the resolved type
                 workload_type=self.workload_type.currentText(),
-                duration_hours=self.duration_spin.value()
+                duration_hours=self.duration_spin.value(),
             )
-            
-            print(f"Launch result: {result}")
-            
+
             self.launch_instance_btn.setEnabled(True)
             self.launch_instance_btn.setText("🚀 Launch Real AWS Instance")
-            
+
             if result and result.get('message') == 'Instance launched successfully':
                 instance = result.get('instance', {})
                 workload = result.get('workload', {})
-                
+                type_info = result.get('instanceTypeInfo', {})
+
+                upgrade_msg = ""
+                if type_info.get('wasUpgraded'):
+                    upgrade_msg = (
+                        f"\n\nℹ️  Instance type was automatically upgraded:\n"
+                        f"   {type_info['requestedType']} → {type_info['resolvedType']}\n"
+                        f"   (t2.micro is not free-tier eligible in {aws_region})"
+                    )
+
                 QMessageBox.information(
                     self,
                     "✓ Instance Launched",
                     f"AWS Instance launched successfully!\n\n"
                     f"Instance ID: {instance.get('instanceId')}\n"
-                    f"Status: {instance.get('state')}\n"
-                    f"Region: {aws_region}\n"
+                    f"Type:        {instance.get('instanceType', resolved_type)}\n"
+                    f"Status:      {instance.get('state')}\n"
+                    f"Region:      {aws_region}\n"
                     f"Workload ID: {workload.get('id')}\n"
-                    f"Est. Savings: {workload.get('savingsGCO2', 0):.2f} gCO₂\n\n"
-                    f"⚠️ IMPORTANT:\n"
-                    f"Switch to 'Active Instances' tab to monitor and terminate when done!\n"
-                    f"Remember: You pay for every hour it runs!"
+                    f"Est. Savings:{workload.get('savingsGCO2', 0):.2f} gCO₂"
+                    f"{upgrade_msg}\n\n"
+                    "⚠️ Switch to 'Active Instances' tab to monitor and terminate!",
                 )
-                
+
                 if hasattr(self, 'instances_tab'):
                     self.tabs.setCurrentWidget(self.instances_tab)
                     self.refresh_instances()
             else:
-                error_msg = result.get('error', 'Unknown error') if result else 'Launch failed'
-                error_details = result.get('details', '') if result else ''
-                
+                error_msg     = result.get('error',   'Unknown error') if result else 'Launch failed'
+                error_details = result.get('details', '')              if result else ''
                 QMessageBox.warning(
                     self,
                     "Launch Failed",
                     f"Failed to launch AWS instance\n\n"
                     f"Error: {error_msg}\n\n"
                     f"Details: {error_details}\n\n"
-                    f"Please check:\n"
-                    f"1. Backend is running\n"
-                    f"2. AWS credentials are correct\n"
-                    f"3. You have permissions in AWS\n"
-                    f"4. Check backend terminal for more details"
+                    "Please check:\n"
+                    "1. Backend is running\n"
+                    "2. AWS credentials are correct\n"
+                    "3. You have permissions in AWS\n"
+                    "4. Check backend terminal for more details",
                 )
+
         except Exception as e:
             self.launch_instance_btn.setEnabled(True)
             self.launch_instance_btn.setText("🚀 Launch Real AWS Instance")
-            
-            print(f"Exception launching instance: {e}")
             import traceback
             traceback.print_exc()
-            
-            QMessageBox.warning(
-                self,
-                "Launch Error",
-                f"An error occurred:\n\n{str(e)}\n\n"
-                f"Check the console output for full details."
-            )
+            QMessageBox.warning(self, "Launch Error", f"An error occurred:\n\n{e}")
 
     def submit_workload(self):
         if not self.savings_data:
             QMessageBox.warning(self, "Error", "Please calculate savings first")
             return
-        
-        region = self.savings_data['selected_region']
-        
-        # Safely extract values with fallbacks
-        local_emissions = float(self.savings_data.get('localEmissions', '0'))
-        cloud_emissions = float(self.savings_data.get('cloudEmissions', '0'))
-        energy_kwh = float(self.savings_data.get('energyKWh', '0'))
-        
+
+        region           = self.savings_data['selected_region']
+        local_emissions  = float(self.savings_data.get('localEmissions', '0'))
+        cloud_emissions  = float(self.savings_data.get('cloudEmissions', '0'))
+        energy_kwh       = float(self.savings_data.get('energyKWh',      '0'))
+
         workload_data = {
-            "workloadType": self.workload_type.currentText(),
-            "targetCloudRegion": region['region'],
-            "cloudProvider": 'aws',
-            "estimatedLocalEmissions": local_emissions,
-            "estimatedCloudEmissions": cloud_emissions,
+            "workloadType":             self.workload_type.currentText(),
+            "targetCloudRegion":        region['region'],
+            "cloudProvider":            'aws',
+            "estimatedLocalEmissions":  local_emissions,
+            "estimatedCloudEmissions":  cloud_emissions,
             "metadata": {
-                "duration": self.duration_spin.value(),
-                "power": self.power_spin.value(),
-                "energyKWh": energy_kwh,
-                "simulated": True
-            }
+                "duration":   self.duration_spin.value(),
+                "power":      self.power_spin.value(),
+                "energyKWh":  energy_kwh,
+                "simulated":  True,
+            },
         }
-        
+
         self.submit_workload_btn.setEnabled(False)
-        self.submit_workload_btn.setText("Submitting...")
-        
+        self.submit_workload_btn.setText("Submitting…")
+
         result = self.cloud_service.submit_workload(workload_data)
-        
+
         self.submit_workload_btn.setEnabled(True)
         self.submit_workload_btn.setText("📝 Submit Workload (Simulated)")
-        
+
         if result:
-            # Safely extract savings with fallbacks
-            savings_gco2 = self.savings_data.get('savingsGCO2', self.savings_data.get('savingsGCO₂', '0'))
-            region_name = region.get('regionName', 'Unknown')
-            
+            savings_gco2 = self.savings_data.get('savingsGCO2', '0')
             QMessageBox.information(
                 self,
                 "Success",
                 f"✓ Simulated workload submitted successfully!\n\n"
                 f"Workload Type: {workload_data['workloadType']}\n"
-                f"Est. Savings: {savings_gco2} gCO₂\n"
-                f"Region: {region_name}\n\n"
-                f"This is a simulated workload for tracking purposes.\n"
-                f"No real cloud instance was created."
+                f"Est. Savings:  {savings_gco2} gCO₂\n"
+                f"Region:        {region.get('regionName', 'Unknown')}\n\n"
+                "This is a simulated workload for tracking purposes.\n"
+                "No real cloud instance was created.",
             )
             self.savings_data = None
             self.submit_workload_btn.setEnabled(False)
@@ -824,39 +854,39 @@ class TrackerWindow(QWidget):
 
     def view_workloads(self):
         data = self.cloud_service.get_workloads(limit=20)
-        
+
         if data and 'workloads' in data:
-            stats = data['stats']
+            stats     = data['stats']
             workloads = data['workloads']
-            
+
             workloads_text = (
                 f"📊 YOUR CLOUD WORKLOADS\n"
                 f"{'='*60}\n\n"
                 f"Total Workloads: {stats['totalWorkloads']}\n"
-                f"Total Savings: {stats['totalSavings']} gCO₂\n"
-                f"Total Cost: ${stats['totalCost']}\n\n"
+                f"Total Savings:   {stats['totalSavings']} gCO₂\n"
+                f"Total Cost:      ${stats['totalCost']}\n\n"
                 f"By Status:\n"
-                f"  • Pending: {stats['byStatus']['pending']}\n"
-                f"  • Running: {stats['byStatus']['running']}\n"
+                f"  • Pending:   {stats['byStatus']['pending']}\n"
+                f"  • Running:   {stats['byStatus']['running']}\n"
                 f"  • Completed: {stats['byStatus']['completed']}\n"
-                f"  • Failed: {stats['byStatus']['failed']}\n\n"
+                f"  • Failed:    {stats['byStatus']['failed']}\n\n"
                 f"AWS Workloads: {stats['byProvider']['aws']}\n\n"
                 f"{'='*60}\n\n"
-                f"Recent Workloads:\n\n"
+                "Recent Workloads:\n\n"
             )
-            
+
             for i, w in enumerate(workloads[:10], 1):
                 workloads_text += (
-                    f"{i}. {w['workloadType'].title()} - {w['cloudProvider'].upper()}\n"
-                    f"   Region: {w['targetCloudRegion']}\n"
-                    f"   Status: {w['status']}\n"
+                    f"{i}. {w['workloadType'].title()} – {w['cloudProvider'].upper()}\n"
+                    f"   Region:  {w['targetCloudRegion']}\n"
+                    f"   Status:  {w['status']}\n"
                     f"   Savings: {w['savingsGCO2']:.2f} gCO₂\n"
                     f"   Started: {w['startTime'][:19]}\n\n"
                 )
-            
+
             if not workloads:
                 workloads_text += "No workloads yet. Submit one to get started!\n"
-            
+
             self.results_text.setPlainText(workloads_text)
         else:
             QMessageBox.warning(self, "Error", "Failed to load workloads")
@@ -864,51 +894,48 @@ class TrackerWindow(QWidget):
     def refresh_instances(self):
         if not ENABLE_CLOUD_FEATURES or not self.cloud_config['aws']:
             return
-        
+
         self.instances_table.setRowCount(0)
         all_instances = []
-        
-        # Fetch AWS instances from all common regions
-        aws_regions = ['us-east-1', 'us-west-2', 'eu-north-1', 'eu-west-1']
-        
-        for aws_region in aws_regions:
+
+        for aws_region in ['us-east-1', 'us-west-2', 'eu-north-1', 'eu-west-1']:
             aws_result = self.cloud_service.list_instances('aws', region=aws_region)
             if aws_result and aws_result.get('success'):
                 for inst in aws_result.get('instances', []):
                     all_instances.append({
-                        'provider': 'AWS',
-                        'instanceId': inst['instanceId'],
+                        'provider':     'AWS',
+                        'instanceId':   inst['instanceId'],
                         'instanceType': inst.get('instanceType', 'N/A'),
-                        'status': inst.get('state', 'unknown'),
-                        'region': aws_region,
-                        'zone': None
+                        'status':       inst.get('state', 'unknown'),
+                        'region':       aws_region,
+                        'zone':         None,
                     })
-        
-        # Populate table
+
         self.instances_table.setRowCount(len(all_instances))
-        
+
         for row, inst in enumerate(all_instances):
             self.instances_table.setItem(row, 0, QTableWidgetItem(inst['provider']))
             self.instances_table.setItem(row, 1, QTableWidgetItem(inst['instanceId']))
             self.instances_table.setItem(row, 2, QTableWidgetItem(inst['instanceType']))
-            
+
             status_item = QTableWidgetItem(inst['status'])
             if inst['status'].lower() == 'running':
                 status_item.setForeground(Qt.GlobalColor.darkGreen)
             elif inst['status'].lower() in ['stopped', 'terminated']:
                 status_item.setForeground(Qt.GlobalColor.red)
             self.instances_table.setItem(row, 3, status_item)
-            
+
             self.instances_table.setItem(row, 4, QTableWidgetItem(inst['region']))
-            
-            # Add terminate button
+
             terminate_btn = QPushButton("🗑️ Terminate")
-            terminate_btn.setStyleSheet("background-color: #f44336; color: white; padding: 5px;")
+            terminate_btn.setStyleSheet(
+                "background-color:#f44336; color:white; padding:5px;"
+            )
             terminate_btn.clicked.connect(
                 lambda checked, i=inst: self.terminate_instance(i)
             )
             self.instances_table.setCellWidget(row, 5, terminate_btn)
-        
+
         self.active_instances = all_instances
 
     def terminate_instance(self, instance_info):
@@ -918,53 +945,48 @@ class TrackerWindow(QWidget):
             f"⚠️ Are you sure you want to TERMINATE this instance?\n\n"
             f"Provider: {instance_info['provider']}\n"
             f"Instance: {instance_info['instanceId']}\n"
-            f"Status: {instance_info['status']}\n"
-            f"Region: {instance_info['region']}\n\n"
-            f"This action cannot be undone!",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            f"Status:   {instance_info['status']}\n"
+            f"Region:   {instance_info['region']}\n\n"
+            "This action cannot be undone!",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
-        
+
         if reply == QMessageBox.StandardButton.No:
             return
-        
-        provider = instance_info['provider'].lower()
-        instance_id = instance_info['instanceId']
-        region = instance_info.get('region')
-        
+
         result = self.cloud_service.terminate_instance(
-            provider=provider,
-            instance_id=instance_id,
-            region=region
+            provider=instance_info['provider'].lower(),
+            instance_id=instance_info['instanceId'],
+            region=instance_info.get('region'),
         )
-        
+
         if result and result.get('message') == 'Instance terminated successfully':
             QMessageBox.information(
                 self,
                 "Success",
                 f"✓ Instance terminated successfully!\n\n"
-                f"Instance: {instance_id}\n"
-                f"Region: {region}"
+                f"Instance: {instance_info['instanceId']}\n"
+                f"Region:   {instance_info['region']}",
             )
             self.refresh_instances()
         else:
             error_msg = result.get('error', 'Unknown error') if result else 'Termination failed'
             QMessageBox.warning(
-                self,
-                "Termination Failed",
-                f"Failed to terminate instance\n\n"
-                f"Error: {error_msg}"
+                self, "Termination Failed",
+                f"Failed to terminate instance\n\nError: {error_msg}",
             )
 
-    # Tracking Tab Methods
+    # ── Tracking tab methods ───────────────────────────────────────────────────
+
     def start_tracking(self):
         self.tracker = TrackerSession(
             user_id=self.user_id,
             device_id="desktop-app",
-            token=self.token
+            token=self.token,
         )
         self.tracker.start()
         self.label.setText(
-            "🔄 Tracking energy consumption...\n\n"
+            "🔄 Tracking energy consumption…\n\n"
             "The app is now monitoring your device's carbon emissions.\n"
             "Press 'Stop' when you want to end the tracking session."
         )
@@ -975,32 +997,33 @@ class TrackerWindow(QWidget):
         if not self.tracker:
             self.label.setText("Error: Tracker not running.")
             return
-            
+
         data = self.tracker.stop()
-        
+
         if data:
             self.label.setText(
                 f"✅ Session complete!\n\n"
-                f"Energy: {data['energy_kwh']:.6f} kWh\n"
-                f"CO₂: {data['emissions_gco2']:.4f} g\n"
+                f"Energy:   {data['energy_kwh']:.6f} kWh\n"
+                f"CO₂:      {data['emissions_gco2']:.4f} g\n"
                 f"Duration: {data['duration_seconds']:.0f} seconds\n\n"
-                f"Data uploaded to your dashboard!\n"
-                f"View your complete history on the web dashboard."
+                "Data uploaded to your dashboard!\n"
+                "View your complete history on the web dashboard."
             )
         else:
             self.label.setText(
                 "❌ Error: Failed to save tracking data.\n\n"
-                f"Please check your internet connection and try again."
+                "Please check your internet connection and try again."
             )
-            
+
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
-    
     login_window = LoginWindow()
     login_window.show()
     sys.exit(app.exec())
