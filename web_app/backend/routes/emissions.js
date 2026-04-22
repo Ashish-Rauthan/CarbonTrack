@@ -69,32 +69,40 @@ router.post('/log', auth, async (req, res) => {
       energyKWh:       energyVal,
       emissionsGCO2:   emissionsVal,
       durationSeconds: durationVal,
-      metadata:        metadata || {},
+      metadata: {
+        ...(metadata || {}),
+        // ── FIX: explicitly save the source field from Python tracker ──
+        source: metadata?.source || 'estimated',
+      },
     });
 
     await emission.save();
 
-    console.log(`Emission saved: ${emission._id} | ${emissionsVal.toFixed(4)} gCO2 | ${energyVal.toFixed(6)} kWh`);
+    console.log(
+      `Emission saved: ${emission._id} | ` +
+      `${emissionsVal.toFixed(4)} gCO2 | ` +
+      `${energyVal.toFixed(6)} kWh | ` +
+      `source=${emission.metadata.source}`
+    );
 
     res.status(201).json({
       message: 'Emission logged successfully',
       emission: {
-        id:           emission._id,
-        energyKWh:    emission.energyKWh,
+        id:            emission._id,
+        energyKWh:     emission.energyKWh,
         emissionsGCO2: emission.emissionsGCO2,
+        durationSeconds: emission.durationSeconds,
+        timestamp:     emission.timestamp,
+        source:        emission.metadata.source,
       },
     });
 
   } catch (error) {
-    // Log the full error so it is visible in the backend terminal
     console.error('Error logging emission:', error.message);
     if (error.name === 'ValidationError') {
       const fields = Object.keys(error.errors).map(k => `${k}: ${error.errors[k].message}`);
       console.error('Mongoose validation errors:', fields);
-      return res.status(400).json({
-        message: 'Validation error',
-        fields,
-      });
+      return res.status(400).json({ message: 'Validation error', fields });
     }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -120,6 +128,24 @@ router.get('/', auth, async (req, res) => {
     res.json({ emissions, count: emissions.length });
   } catch (error) {
     console.error('Error fetching emissions:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ── GET /emissions/recent ─────────────────────────────────────────────────────
+// NEW: Returns the N most recent individual emission sessions for the live feed
+router.get('/recent', auth, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+
+    const emissions = await Emission.find({ user: req.user.id })
+      .sort({ timestamp: -1 })
+      .limit(limit)
+      .lean();
+
+    res.json({ emissions, count: emissions.length });
+  } catch (error) {
+    console.error('Error fetching recent emissions:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -169,10 +195,10 @@ router.get('/stats', auth, async (req, res) => {
     res.json({
       period,
       totalEnergy:    parseFloat(r.totalEnergy.toFixed(6)),
-      totalEmissions: parseFloat(r.totalEmissions.toFixed(2)),
+      totalEmissions: parseFloat(r.totalEmissions.toFixed(4)),
       totalDuration:  r.totalDuration,
       sessionCount:   r.count,
-      avgEmissions:   parseFloat(r.avgEmissions.toFixed(2)),
+      avgEmissions:   parseFloat(r.avgEmissions.toFixed(4)),
     });
 
   } catch (error) {

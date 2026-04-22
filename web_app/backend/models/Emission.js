@@ -38,11 +38,17 @@ const emissionSchema = new mongoose.Schema({
     min: 0
   },
   metadata: {
-    country: String,
-    region: String,
+    country:    String,
+    region:     String,
     powerSource: String,
-    cpuUsage: Number,
-    ramUsage: Number
+    cpuUsage:   Number,
+    ramUsage:   Number,
+    // ── NEW: track whether reading came from CodeCarbon or estimation ──
+    source: {
+      type: String,
+      enum: ['codecarbon', 'estimated'],
+      default: 'estimated'
+    }
   }
 }, {
   timestamps: true
