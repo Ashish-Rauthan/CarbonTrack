@@ -350,7 +350,7 @@ const Navigation = () => {
       <div className="nav-root">
         {/* Mobile Header */}
         <header className="nav-mobile-header">
-          <Link to="/" className="mobile-brand">Earthbound Editorial</Link>
+          <Link to="/" className="mobile-brand">CarbonTrack</Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <button className="nav-icon-btn">
               <span className="material-symbols-outlined">notifications</span>
@@ -363,7 +363,7 @@ const Navigation = () => {
 
         {/* Desktop Top Bar */}
         <header className="nav-topbar">
-          <Link to="/" className="nav-brand">Earthbound Editorial</Link>
+          <Link to="/" className="nav-brand">CarbonTrack</Link>
 
           <ul className="nav-links">
             {token ? (

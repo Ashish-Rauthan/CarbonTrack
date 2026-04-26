@@ -390,7 +390,7 @@ const Login = () => {
 
         {/* Brand */}
         <div className="ee-brand">
-          <div className="ee-brand-wordmark">Earthbound Editorial</div>
+          <div className="ee-brand-wordmark">CarbonTrack</div>
           <div className="ee-brand-tagline">The Digital Arboreal</div>
         </div>
 
@@ -471,7 +471,7 @@ const Login = () => {
           </div>
         </div>
 
-        <p className="ee-page-footer">© 2024 Earthbound Editorial · Towards a permanent digital forest.</p>
+        <p className="ee-page-footer">© 2026 Carbon Track · Towards a permanent digital forest.</p>
       </div>
     </>
   )

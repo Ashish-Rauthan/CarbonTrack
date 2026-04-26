@@ -834,7 +834,7 @@ const CloudOptimization = () => {
 
       {/* Footer */}
       <footer style={{ borderTop: '1px solid rgba(193,200,194,0.15)', paddingTop: '2rem', marginTop: '3rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-        <p style={{ fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(1,45,29,0.5)', margin: 0 }}>© 2024 Earthbound Editorial. Towards a permanent digital forest.</p>
+        <p style={{ fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(1,45,29,0.5)', margin: 0 }}>© 2026 CarbonTrack. Towards a permanent digital forest.</p>
         <div style={{ display: 'flex', gap: '1.5rem' }}>
           {['Documentation', 'Support', 'API Status', 'Privacy Policy'].map(l => (
             <a key={l} href="#" style={{ fontSize: '0.6875rem', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(25,28,28,0.4)', textDecoration: 'none' }}>{l}</a>

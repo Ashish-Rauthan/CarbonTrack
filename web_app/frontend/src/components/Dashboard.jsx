@@ -953,7 +953,7 @@ const Dashboard = () => {
         gap: '1rem',
       }}>
         <p style={{ fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(1,45,29,0.5)', margin: 0 }}>
-          © 2024 Earthbound Editorial. Towards a permanent digital forest.
+          © 2026 Carbon Track. Towards a permanent digital forest.
         </p>
         <div style={{ display: 'flex', gap: '1.5rem' }}>
           {['Documentation', 'Support', 'API Status', 'Privacy Policy'].map(l => (

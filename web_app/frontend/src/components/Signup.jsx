@@ -427,7 +427,7 @@ const Signup = () => {
           {/* Left editorial panel */}
           <div className="ee-signup-panel">
             <div className="ee-panel-texture" />
-            <div className="ee-panel-brand">Earthbound Editorial</div>
+            <div className="ee-panel-brand">Carbon Track</div>
             <div className="ee-panel-headline">
               <h2>Begin your digital forest.</h2>
               <p>Track emissions, optimize workloads, and build a permanent legacy of environmental impact.</p>
