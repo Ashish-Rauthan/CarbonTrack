@@ -52,3 +52,4 @@ web_app/frontend/dist/
 ehthumbs.db
 Icon?
 desktop.ini
+node_modules
