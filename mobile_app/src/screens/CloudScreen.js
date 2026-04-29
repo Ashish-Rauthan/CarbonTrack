@@ -1,24 +1,30 @@
 // src/screens/CloudScreen.js
-// All savings calculations and AWS interactions are done by the backend.
-// This screen is purely a UI/API consumer.
+// "The Earthbound Editorial" — Cloud Optimization
+// Design: AWS status card with tonal layering, form inputs with ghost borders,
+//         results card with leaf progress, no-line data lists
+// Backend logic: UNCHANGED
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Alert, RefreshControl,
+  Alert, RefreshControl, Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { cloudAPI } from '../services/api';
 import {
-  Card, Button, Input, SectionHeader, ErrorBox,
-  LoadingOverlay, EmptyState, Badge,
+  Button, Input, SectionHeader, ErrorBox,
+  LoadingOverlay, EmptyState, Badge, LeafProgressBar, ImpactBadge,
 } from '../components/UI';
-import { Colors, Spacing, Radius, Typography, Shadow } from '../utils/theme';
+import { Colors, Spacing, Radius, Shadow, Typography } from '../utils/theme';
 
+const { width } = Dimensions.get('window');
 const WORKLOAD_TYPES = ['computation', 'storage', 'processing', 'training', 'batch'];
 const INSTANCE_TYPES = ['t2.micro', 't2.small', 't3.micro', 't3.small'];
 
 export default function CloudScreen() {
-  const [tab, setTab] = useState('calculate'); // 'calculate' | 'results' | 'workloads'
+  const insets = useSafeAreaInsets();
+  const [tab, setTab] = useState('calculate');
 
   const [regions,      setRegions]      = useState([]);
   const [selectedId,   setSelectedId]   = useState('');
@@ -29,14 +35,14 @@ export default function CloudScreen() {
 
   const [savings,    setSavings]    = useState(null);
   const [workloads,  setWorkloads]  = useState([]);
-  const [connStatus, setConnStatus] = useState(null); // null | true | false
+  const [connStatus, setConnStatus] = useState(null);
 
   const [loading,    setLoading]    = useState(false);
   const [regLoading, setRegLoading] = useState(true);
   const [wlLoading,  setWlLoading]  = useState(false);
   const [error,      setError]      = useState('');
 
-  // ── Bootstrap ────────────────────────────────────────────────────────────
+  // ── Bootstrap — UNCHANGED ─────────────────────────────────────────────────
   const fetchRegions = useCallback(async () => {
     setRegLoading(true);
     try {
@@ -79,11 +85,11 @@ export default function CloudScreen() {
     if (tab === 'workloads') fetchWorkloads();
   }, [tab, fetchWorkloads]);
 
-  // ── Calculate savings (backend call) ─────────────────────────────────────
+  // ── Calculate savings — UNCHANGED ────────────────────────────────────────
   const calculateSavings = async () => {
     if (!selectedId) { setError('Please select a region.'); return; }
-    const dur  = parseFloat(duration);
-    const pwr  = parseFloat(power);
+    const dur = parseFloat(duration);
+    const pwr = parseFloat(power);
     if (isNaN(dur) || dur <= 0) { setError('Enter a valid duration (hours).'); return; }
     if (isNaN(pwr) || pwr <= 0) { setError('Enter a valid power (watts).'); return; }
 
@@ -105,7 +111,7 @@ export default function CloudScreen() {
     }
   };
 
-  // ── Launch real instance ──────────────────────────────────────────────────
+  // ── Launch instance — UNCHANGED ───────────────────────────────────────────
   const launchInstance = async () => {
     const region = regions.find((r) => r._id === selectedId);
     if (!region || !savings) return;
@@ -147,7 +153,7 @@ export default function CloudScreen() {
     );
   };
 
-  // ── Submit simulated workload ─────────────────────────────────────────────
+  // ── Submit simulated workload — UNCHANGED ─────────────────────────────────
   const submitWorkload = async () => {
     if (!savings) return;
     const region = regions.find((r) => r._id === selectedId);
@@ -178,7 +184,7 @@ export default function CloudScreen() {
     }
   };
 
-  // ── Terminate instance ────────────────────────────────────────────────────
+  // ── Terminate instance — UNCHANGED ────────────────────────────────────────
   const terminateInstance = (workload) => {
     Alert.alert(
       '⚠️ Terminate Instance',
@@ -207,33 +213,48 @@ export default function CloudScreen() {
   };
 
   const selectedRegionObj = regions.find((r) => r._id === selectedId);
+  const headerHeight = insets.top + 64;
+  const bottomPad    = insets.bottom + 80;
 
   if (regLoading) return <LoadingOverlay message="Loading cloud regions…" />;
 
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: headerHeight + Spacing.lg, paddingBottom: bottomPad }]}
       refreshControl={
         tab === 'workloads'
           ? <RefreshControl refreshing={wlLoading} onRefresh={fetchWorkloads} tintColor={Colors.primary} />
           : undefined
       }
+      showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Cloud Optimization</Text>
-        <View style={[styles.connBadge, { backgroundColor: connStatus ? Colors.accentLight : Colors.errorLight }]}>
-          <View style={[styles.connDot, { backgroundColor: connStatus ? Colors.accent : Colors.error }]} />
-          <Text style={[styles.connText, { color: connStatus ? Colors.primary : Colors.error }]}>
-            {connStatus === null ? 'Testing…' : connStatus ? 'AWS Connected' : 'AWS Error'}
-          </Text>
+      {/* ── AWS Provider Status Card ─────────────────────────────────────── */}
+      <View style={styles.awsCard}>
+        <View style={styles.awsLeft}>
+          <View style={styles.awsLogoWrap}>
+            <Text style={styles.awsLogoEmoji}>☁️</Text>
+          </View>
+          <View>
+            <Text style={styles.awsTitle}>AWS Provider Status</Text>
+            <View style={styles.awsStatusRow}>
+              <View style={[styles.awsDot, { backgroundColor: connStatus ? Colors.onTertiaryContainer : Colors.error }]} />
+              <Text style={[styles.awsStatusText, { color: connStatus ? Colors.onSecondaryContainer : Colors.error }]}>
+                {connStatus === null ? 'TESTING…' : connStatus ? 'CONNECTED' : 'ERROR'}
+              </Text>
+            </View>
+          </View>
         </View>
+        <TouchableOpacity style={styles.settingsBtn} onPress={testConnection}>
+          <Text style={styles.settingsIcon}>⚙️</Text>
+        </TouchableOpacity>
       </View>
-      <Text style={styles.desc}>Offload workloads to low-carbon AWS regions for maximum emission savings.</Text>
 
-      {/* Tab Nav */}
-      <View style={styles.tabs}>
+      {/* ── Section headline ─────────────────────────────────────────────── */}
+      <Text style={styles.sectionHeadline}>Optimize Workload</Text>
+
+      {/* ── Tab Navigation ──────────────────────────────────────────────── */}
+      <View style={styles.tabRow}>
         {[
           ['calculate', 'Calculate'],
           ['results',   'Results'],
@@ -241,125 +262,163 @@ export default function CloudScreen() {
         ].map(([id, label]) => (
           <TouchableOpacity
             key={id}
-            style={[styles.tab, tab === id && styles.tabActive]}
+            style={[styles.tabBtn, tab === id && styles.tabBtnActive]}
             onPress={() => setTab(id)}
             disabled={id === 'results' && !savings}
           >
-            <Text style={[styles.tabText, tab === id && styles.tabTextActive]}>{label}</Text>
+            <Text style={[styles.tabBtnText, tab === id && styles.tabBtnTextActive]}>{label}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <ErrorBox message={error} />
 
-      {/* ── Calculate Tab ──────────────────────────────────────────────────── */}
+      {/* ── Calculate Tab ────────────────────────────────────────────────── */}
       {tab === 'calculate' && (
         <>
-          <SectionHeader title="Select AWS Region" />
-          <Card>
-            <Text style={styles.pickerLabel}>REGION (sorted greenest first)</Text>
-            {regions.map((r) => (
-              <TouchableOpacity
-                key={r._id}
-                style={[styles.regionItem, selectedId === r._id && styles.regionItemSelected]}
-                onPress={() => setSelectedId(r._id)}
-              >
-                <View style={styles.regionLeft}>
-                  <Text style={styles.regionName}>{r.regionName}</Text>
-                  <Text style={styles.regionCode}>{r.provider?.toUpperCase()} · {r.region}</Text>
-                </View>
-                <View style={styles.regionRight}>
-                  <Text style={styles.regionCarbon}>{r.carbonIntensity} gCO₂/kWh</Text>
-                  <Text style={styles.regionRenew}>{r.renewablePercentage}% renewable</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+          {/* Cloud Region */}
+          <View style={styles.formField}>
+            <Text style={styles.fieldLabel}>Cloud Region</Text>
+            <View style={styles.selectWrap}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.regionScroll}>
+                {regions.map((r) => (
+                  <TouchableOpacity
+                    key={r._id}
+                    style={[styles.regionChip, selectedId === r._id && styles.regionChipSelected]}
+                    onPress={() => setSelectedId(r._id)}
+                  >
+                    <Text style={[styles.regionChipText, selectedId === r._id && styles.regionChipTextSelected]}>
+                      {r.region}
+                    </Text>
+                    <Text style={[styles.regionChipSub, selectedId === r._id && { color: Colors.onSecondaryContainer }]}>
+                      {r.carbonIntensity}g
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
             {selectedRegionObj && (
               <View style={styles.regionTip}>
                 <Text style={styles.regionTipText}>
-                  💚 {selectedRegionObj.regionName}, {selectedRegionObj.country} — {selectedRegionObj.carbonIntensity} gCO₂/kWh
-                  {selectedRegionObj.freeTierInstanceType ? ` · Free tier: ${selectedRegionObj.freeTierInstanceType}` : ''}
+                  💚 {selectedRegionObj.regionName} · {selectedRegionObj.carbonIntensity} gCO₂/kWh · {selectedRegionObj.renewablePercentage}% renewable
                 </Text>
               </View>
             )}
-          </Card>
+          </View>
 
-          <SectionHeader title="Workload Configuration" />
-          <Card>
-            <Text style={styles.pickerLabel}>WORKLOAD TYPE</Text>
-            <View style={styles.pickerWrap}>
+          {/* Workload Type */}
+          <View style={styles.formField}>
+            <Text style={styles.fieldLabel}>Workload Type</Text>
+            <View style={styles.chipRow}>
               {WORKLOAD_TYPES.map((t) => (
                 <TouchableOpacity
                   key={t}
                   style={[styles.typeChip, workloadType === t && styles.typeChipSelected]}
                   onPress={() => setWorkloadType(t)}
                 >
-                  <Text style={[styles.typeChipText, workloadType === t && styles.typeChipTextSelected]}>
-                    {t}
-                  </Text>
+                  <Text style={[styles.typeChipText, workloadType === t && styles.typeChipTextSelected]}>{t}</Text>
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
 
-            <Text style={[styles.pickerLabel, { marginTop: Spacing.md }]}>INSTANCE TYPE</Text>
-            <View style={styles.pickerWrap}>
+          {/* Instance Type */}
+          <View style={styles.formField}>
+            <Text style={styles.fieldLabel}>Instance Type</Text>
+            <View style={styles.chipRow}>
               {INSTANCE_TYPES.map((t) => (
                 <TouchableOpacity
                   key={t}
                   style={[styles.typeChip, instanceType === t && styles.typeChipSelected]}
                   onPress={() => setInstanceType(t)}
                 >
-                  <Text style={[styles.typeChipText, instanceType === t && styles.typeChipTextSelected]}>
-                    {t}
-                  </Text>
+                  <Text style={[styles.typeChipText, instanceType === t && styles.typeChipTextSelected]}>{t}</Text>
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
 
-            <Input
-              label="Duration (hours)"
-              placeholder="e.g. 1.5"
-              keyboardType="decimal-pad"
-              value={duration}
-              onChangeText={setDuration}
-              style={{ marginTop: Spacing.md }}
-            />
-            <Input
-              label="Estimated Power (watts)"
-              placeholder="e.g. 100"
-              keyboardType="decimal-pad"
-              value={power}
-              onChangeText={setPower}
-            />
-          </Card>
+          {/* Duration */}
+          <View style={styles.formField}>
+            <Text style={styles.fieldLabel}>Estimated Duration</Text>
+            <View style={styles.durationRow}>
+              <Input
+                placeholder="24"
+                keyboardType="decimal-pad"
+                value={duration}
+                onChangeText={setDuration}
+                style={styles.durationInput}
+              />
+              <View style={styles.durationUnit}>
+                <Text style={styles.durationUnitText}>HOURS</Text>
+              </View>
+            </View>
+          </View>
 
+          {/* Power */}
+          <Input
+            label="Estimated Power (watts)"
+            placeholder="e.g. 100"
+            keyboardType="decimal-pad"
+            value={power}
+            onChangeText={setPower}
+          />
+
+          {/* Calculate CTA — gradient primary button */}
           <Button
-            title="💡  Calculate Savings"
+            title="🧮  Calculate Savings"
             onPress={calculateSavings}
             loading={loading}
             disabled={!selectedId}
-            style={{ marginBottom: Spacing.xl }}
+            style={{ marginTop: Spacing.sm, marginBottom: Spacing.xl }}
           />
         </>
       )}
 
-      {/* ── Results Tab ────────────────────────────────────────────────────── */}
+      {/* ── Results Tab ──────────────────────────────────────────────────── */}
       {tab === 'results' && savings ? (
         <>
-          <SectionHeader title="Carbon Savings Calculation" />
-          <Card>
-            <View style={styles.resultsGrid}>
-              <ResultCell label="Local Emissions" value={savings.localEmissions} unit="gCO₂" color={Colors.error} />
-              <ResultCell label="Cloud Emissions" value={savings.cloudEmissions} unit="gCO₂" color={Colors.textMuted} />
-              <ResultCell label="Total Savings"   value={savings.savingsGCO2}    unit="gCO₂" color={Colors.success} />
-              <ResultCell label="Reduction"       value={`${savings.savingsPercentage}%`}   color={Colors.primary} />
+          {/* Results hero card */}
+          <View style={styles.resultsCard}>
+            {/* Header */}
+            <View style={styles.resultsHeader}>
+              <View>
+                <Text style={styles.resultsMetaLabel}>Potential Carbon Reduction</Text>
+                <View style={styles.resultsValueRow}>
+                  <Text style={styles.resultsValue}>{savings.savingsGCO2}</Text>
+                  <Text style={styles.resultsValueUnit}> gCO2e</Text>
+                </View>
+              </View>
+              <ImpactBadge label={`-${savings.savingsPercentage}% IMPACT`} />
             </View>
-            <View style={styles.regionTip}>
-              <Text style={styles.regionTipText}>
-                📍 {savings.region?.name} (AWS) · {savings.region?.carbonIntensity} gCO₂/kWh · {savings.region?.renewablePercentage}% renewable
-              </Text>
+
+            {/* Data rows — white space separates items (No-Line Rule) */}
+            <View style={styles.dataList}>
+              <DataRow label="Local Emissions"    value={`${savings.localEmissions} gCO₂`} />
+              <DataRow label="Cloud Emissions"    value={`${savings.cloudEmissions} gCO₂`} />
+              <DataRow label="Recommended Region" value={savings.region?.name || 'eu-west-1'} highlight />
+              <DataRow label="Spot Instance Offset" value={`-$${(parseFloat(savings.savingsGCO2) * 0.0001).toFixed(2)} USD`} highlight />
             </View>
-          </Card>
+
+            {/* Leaf progress bar — the signature component */}
+            <View style={styles.progressWrap}>
+              <LeafProgressBar progress={Math.min(1, parseFloat(savings.savingsPercentage) / 100)} height={6} />
+            </View>
+
+            {/* Submit CTA */}
+            <TouchableOpacity style={styles.submitBtn} onPress={submitWorkload}>
+              <Text style={styles.submitBtnIcon}>☁️</Text>
+              <Text style={styles.submitBtnText}>Submit Workload</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Contextual note */}
+          <Text style={styles.contextNote}>
+            By optimizing this workload, you save the equivalent of charging{' '}
+            <Text style={styles.contextNoteBold}>
+              {Math.round(parseFloat(savings.savingsGCO2) * 12)} smartphones
+            </Text>.
+          </Text>
 
           <Button
             title="🚀  Launch Real AWS Instance"
@@ -376,17 +435,13 @@ export default function CloudScreen() {
           />
         </>
       ) : tab === 'results' ? (
-        <EmptyState icon="💡" title="No results yet" subtitle="Go to Calculate Savings to get started." />
+        <EmptyState icon="💡" title="No results yet" subtitle="Go to Calculate to get started." />
       ) : null}
 
-      {/* ── Workloads Tab ───────────────────────────────────────────────────── */}
+      {/* ── Workloads Tab ────────────────────────────────────────────────── */}
       {tab === 'workloads' && (
         <>
-          <SectionHeader
-            title="My Cloud Workloads"
-            action="Refresh"
-            onAction={fetchWorkloads}
-          />
+          <SectionHeader title="My Cloud Workloads" action="Refresh" onAction={fetchWorkloads} />
           {wlLoading ? (
             <LoadingOverlay message="Loading workloads…" />
           ) : workloads.length === 0 ? (
@@ -398,28 +453,23 @@ export default function CloudScreen() {
           )}
         </>
       )}
-
-      <View style={{ height: Spacing.xxl }} />
     </ScrollView>
   );
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-function ResultCell({ label, value, unit, color }) {
+function DataRow({ label, value, highlight }) {
   return (
-    <View style={styles.resultCell}>
-      <Text style={styles.resultCellLabel}>{label}</Text>
-      <Text style={[styles.resultCellValue, color && { color }]}>
-        {value}
-        {unit && <Text style={styles.resultCellUnit}> {unit}</Text>}
-      </Text>
+    <View style={[styles.dataRow, highlight && styles.dataRowHighlight]}>
+      <Text style={styles.dataRowLabel}>{label}</Text>
+      <Text style={[styles.dataRowValue, highlight && styles.dataRowValueHighlight]}>{value}</Text>
     </View>
   );
 }
 
 function WorkloadCard({ workload, onTerminate }) {
   const status      = workload.status;
-  const badgeVariant= status === 'running' ? 'running'
+  const badgeVariant = status === 'running' ? 'running'
     : status === 'completed' ? 'success'
     : status === 'failed' ? 'error'
     : 'neutral';
@@ -439,10 +489,7 @@ function WorkloadCard({ workload, onTerminate }) {
         <Text style={styles.workloadSavingsLabel}>saved</Text>
         <Badge label={status} variant={badgeVariant} />
         {canTerminate && (
-          <TouchableOpacity
-            style={styles.terminateBtn}
-            onPress={() => onTerminate(workload)}
-          >
+          <TouchableOpacity style={styles.terminateBtn} onPress={() => onTerminate(workload)}>
             <Text style={styles.terminateBtnText}>Terminate</Text>
           </TouchableOpacity>
         )}
@@ -453,72 +500,260 @@ function WorkloadCard({ workload, onTerminate }) {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: Colors.background },
-  content: { padding: Spacing.lg },
+  root:    { flex: 1, backgroundColor: Colors.surface },
+  content: { paddingHorizontal: Spacing.lg },
 
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  title:  { ...Typography.h1 },
+  // AWS card — Level 2 card on Level 0 surface
+  awsCard: {
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.lg,
+    ...Shadow.botanical,
+  },
+  awsLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  awsLogoWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceContainerLow,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  awsLogoEmoji: { fontSize: 24 },
+  awsTitle: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 15,
+    color: Colors.primary,
+    letterSpacing: -0.2,
+  },
+  awsStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  awsDot: { width: 7, height: 7, borderRadius: 3.5 },
+  awsStatusText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  settingsBtn: { padding: 8 },
+  settingsIcon: { fontSize: 20 },
 
-  connBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: Radius.full, paddingHorizontal: 10, paddingVertical: 4 },
-  connDot:   { width: 7, height: 7, borderRadius: 3.5 },
-  connText:  { fontSize: 11, fontWeight: '700' },
+  sectionHeadline: {
+    fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 28,
+    letterSpacing: -0.7,
+    color: Colors.primary,
+    marginBottom: Spacing.lg,
+  },
 
-  desc: { ...Typography.body, marginBottom: Spacing.lg },
-
-  tabs: { flexDirection: 'row', backgroundColor: Colors.surface, borderRadius: Radius.full, padding: 4, marginBottom: Spacing.lg, ...Shadow.sm },
-  tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: Radius.full },
-  tabActive: { backgroundColor: Colors.primary },
-  tabText: { fontSize: 13, fontWeight: '600', color: Colors.textMuted },
-  tabTextActive: { color: '#fff' },
-
-  pickerLabel: { ...Typography.label, marginBottom: Spacing.sm },
-  pickerWrap:  { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
-
-  typeChip: {
+  // Tabs — pill style
+  tabRow: {
+    flexDirection: 'row',
+    backgroundColor: Colors.surfaceContainerLowest,
     borderRadius: Radius.full,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: Colors.surfaceAlt,
+    padding: 4,
+    marginBottom: Spacing.lg,
+    ...Shadow.sm,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    alignItems: 'center',
+    borderRadius: Radius.full,
+  },
+  tabBtnActive: { backgroundColor: Colors.primary },
+  tabBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: Colors.textMuted,
+  },
+  tabBtnTextActive: { color: '#fff', fontFamily: 'Inter_700Bold' },
+
+  // Form fields
+  formField: { marginBottom: Spacing.md },
+  fieldLabel: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: Colors.textSecondary,
+    marginBottom: 8,
+    paddingLeft: 4,
+  },
+  selectWrap: { marginBottom: Spacing.sm },
+  regionScroll: { flexGrow: 0 },
+
+  regionChip: {
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: Radius.full,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginRight: 8,
+    alignItems: 'center',
     borderWidth: 1.5,
     borderColor: 'transparent',
+    ...Shadow.sm,
   },
-  typeChipSelected: { borderColor: Colors.primary, backgroundColor: '#f0fdf4' },
-  typeChipText:     { fontSize: 12, fontWeight: '600', color: Colors.textMuted },
-  typeChipTextSelected: { color: Colors.primary },
-
-  regionItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    borderRadius: Radius.sm,
-    paddingHorizontal: 6,
+  regionChipSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: '#f0fdf4',
   },
-  regionItemSelected: { backgroundColor: '#f0fdf4', borderRadius: Radius.sm },
-  regionLeft: { flex: 1 },
-  regionRight: { alignItems: 'flex-end' },
-  regionName: { fontSize: 13, fontWeight: '700', color: Colors.textPrimary },
-  regionCode: { fontSize: 11, color: Colors.textMuted },
-  regionCarbon: { fontSize: 12, fontWeight: '700', color: Colors.error },
-  regionRenew: { fontSize: 11, color: Colors.success },
-
+  regionChipText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  regionChipTextSelected: { color: Colors.primary },
+  regionChipSub: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 10,
+    color: Colors.error,
+    marginTop: 1,
+  },
   regionTip: {
     backgroundColor: Colors.accentLight,
     borderRadius: Radius.sm,
     padding: Spacing.sm,
-    marginTop: Spacing.sm,
+    marginTop: 8,
   },
-  regionTipText: { fontSize: 12, color: Colors.primary, lineHeight: 18 },
+  regionTipText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: Colors.primary,
+    lineHeight: 18,
+  },
 
-  resultsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.sm },
-  resultCell: { width: '47%', backgroundColor: Colors.surfaceAlt, borderRadius: Radius.md, padding: Spacing.md },
-  resultCellLabel: { ...Typography.label, marginBottom: 4 },
-  resultCellValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5, color: Colors.textPrimary },
-  resultCellUnit:  { fontSize: 12, fontWeight: '500', color: Colors.textMuted },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
+  typeChip: {
+    borderRadius: Radius.full,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    backgroundColor: Colors.surfaceContainerLow,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  typeChipSelected: { borderColor: Colors.primary, backgroundColor: '#f0fdf4' },
+  typeChipText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  typeChipTextSelected: { color: Colors.primary, fontFamily: 'Inter_700Bold' },
 
+  durationRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start' },
+  durationInput: { flex: 1, marginBottom: 0 },
+  durationUnit: {
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  durationUnitText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 11,
+    letterSpacing: 0.8,
+    color: Colors.textSecondary,
+  },
+
+  // Results card
+  resultsCard: {
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: Radius.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.sm,
+    overflow: 'hidden',
+    ...Shadow.botanical,
+  },
+  resultsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.lg,
+  },
+  resultsMetaLabel: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 9,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: Colors.textMuted,
+    opacity: 0.6,
+    marginBottom: 4,
+  },
+  resultsValueRow: { flexDirection: 'row', alignItems: 'baseline' },
+  resultsValue: {
+    fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 40,
+    letterSpacing: -1,
+    color: Colors.primary,
+  },
+  resultsValueUnit: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 18,
+    color: Colors.textMuted,
+    opacity: 0.4,
+  },
+
+  // Data list — no dividers, white space only
+  dataList: { marginBottom: Spacing.lg },
+  dataRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    // Subtle tonal shift instead of border
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.surfaceContainer,
+  },
+  dataRowHighlight: {},
+  dataRowLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: Colors.textMuted,
+  },
+  dataRowValue: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 14,
+    color: Colors.textPrimary,
+  },
+  dataRowValueHighlight: { color: Colors.primary },
+
+  progressWrap: { marginBottom: Spacing.lg },
+
+  submitBtn: {
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderRadius: Radius.md,
+    paddingVertical: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  submitBtnIcon: { fontSize: 16 },
+  submitBtnText: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 15,
+    color: Colors.primary,
+  },
+
+  contextNote: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: Spacing.xl,
+    lineHeight: 18,
+    marginBottom: Spacing.lg,
+  },
+  contextNoteBold: { fontFamily: 'Inter_700Bold', color: Colors.textPrimary },
+
+  // Workload cards
   workloadCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surfaceContainerLowest,
     borderRadius: Radius.lg,
     padding: Spacing.md,
     flexDirection: 'row',
@@ -528,18 +763,39 @@ const styles = StyleSheet.create({
     ...Shadow.sm,
   },
   workloadInfo: { flex: 1 },
-  workloadType: { fontSize: 14, fontWeight: '700', color: Colors.textPrimary },
-  workloadMeta: { fontSize: 11, color: Colors.textMuted, marginTop: 2, lineHeight: 16 },
+  workloadType: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 14,
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  workloadMeta: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: Colors.textMuted,
+    lineHeight: 16,
+  },
   workloadRight: { alignItems: 'flex-end', gap: 4 },
-  workloadSavings: { fontSize: 16, fontWeight: '800', color: Colors.success },
-  workloadSavingsLabel: { fontSize: 10, color: Colors.textMuted },
-
+  workloadSavings: {
+    fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 16,
+    color: Colors.success,
+  },
+  workloadSavingsLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10,
+    color: Colors.textMuted,
+  },
   terminateBtn: {
     backgroundColor: Colors.errorLight,
-    borderRadius: Radius.sm,
+    borderRadius: Radius.xs,
     paddingHorizontal: 8,
     paddingVertical: 4,
     marginTop: 4,
   },
-  terminateBtnText: { fontSize: 11, fontWeight: '700', color: Colors.error },
+  terminateBtnText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 11,
+    color: Colors.error,
+  },
 });

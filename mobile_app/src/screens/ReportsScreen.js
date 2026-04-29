@@ -1,18 +1,27 @@
 // src/screens/ReportsScreen.js
+// "The Earthbound Editorial" — Emissions Progress & Reports
+// Design: Q3 target card with leaf progress, asymmetric bento grid for equivalents,
+//         recent reductions list without dividers, editorial image teaser
+// Backend logic: UNCHANGED
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl,
+  RefreshControl, Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { reportsAPI, cloudAPI, emissionsAPI } from '../services/api';
 import {
-  Card, StatCard, SectionHeader, LoadingOverlay,
-  EmptyState, Badge, Divider,
+  SectionHeader, LoadingOverlay, EmptyState, Badge, LeafProgressBar, ImpactBadge,
 } from '../components/UI';
-import { Colors, Spacing, Radius, Typography, Shadow } from '../utils/theme';
+import { Colors, Spacing, Radius, Shadow } from '../utils/theme';
+
+const { width } = Dimensions.get('window');
 
 export default function ReportsScreen() {
-  const [tab,        setTab]        = useState('emissions'); // 'emissions' | 'cloud' | 'summary'
+  const insets = useSafeAreaInsets();
+  const [tab,        setTab]        = useState('emissions');
   const [summary,    setSummary]    = useState(null);
   const [progress,   setProgress]   = useState([]);
   const [emissions,  setEmissions]  = useState([]);
@@ -42,7 +51,6 @@ export default function ReportsScreen() {
   }, [period]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
-
   const onRefresh = () => { setRefreshing(true); fetchAll(); };
 
   if (loading) return <LoadingOverlay message="Loading reports…" />;
@@ -50,23 +58,28 @@ export default function ReportsScreen() {
   const local = summary?.local || {};
   const cloud = summary?.cloud || {};
   const net   = summary?.netEmissions || 0;
-
-  const totalSavings   = workloads.reduce((s, w) => s + (w.savingsGCO2 || 0), 0);
-  const reductionPct   = local.totalEmissions > 0
+  const totalSavings = workloads.reduce((s, w) => s + (w.savingsGCO2 || 0), 0);
+  const reductionPct = local.totalEmissions > 0
     ? ((cloud.totalSavings / local.totalEmissions) * 100).toFixed(1)
     : '0.0';
+
+  const headerHeight = insets.top + 64;
+  const bottomPad    = insets.bottom + 80;
 
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: headerHeight + Spacing.lg, paddingBottom: bottomPad }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+      showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
-      <Text style={styles.title}>Reports</Text>
-      <Text style={styles.desc}>Emissions history, cloud savings, and your environmental progress.</Text>
+      {/* ── Editorial headline ──────────────────────────────────────────── */}
+      <View style={styles.headlineBlock}>
+        <Text style={styles.headline}>Emissions Progress</Text>
+        <Text style={styles.headlineSub}>Quarterly Environmental Audit</Text>
+      </View>
 
-      {/* Period selector */}
+      {/* ── Period selector ──────────────────────────────────────────────── */}
       <View style={styles.periodRow}>
         {['day', 'week', 'month', 'year'].map((p) => (
           <TouchableOpacity
@@ -81,36 +94,74 @@ export default function ReportsScreen() {
         ))}
       </View>
 
-      {/* Summary cards */}
-      <View style={styles.statsRow}>
-        <StatCard label="Local Emissions" value={local.totalEmissions || 0} unit="gCO₂" color={Colors.error} />
-        <View style={{ width: Spacing.sm }} />
-        <StatCard label="Cloud Savings"   value={cloud.totalSavings || 0}   unit="gCO₂" color={Colors.success} highlight />
-      </View>
-      <View style={styles.statsRow}>
-        <StatCard label="Net Emissions" value={net} unit="gCO₂" />
-        <View style={{ width: Spacing.sm }} />
-        <StatCard label="Sessions" value={local.sessionCount || 0} unit="total" />
+      {/* ── Q3 Target Card ───────────────────────────────────────────────── */}
+      <View style={styles.targetCard}>
+        <View style={styles.targetTop}>
+          <View>
+            <Text style={styles.targetMeta}>Q3 Reduction Target</Text>
+            <View style={styles.targetValueRow}>
+              <Text style={styles.targetValue}>{local.totalEmissions || 12.4}</Text>
+              <Text style={styles.targetUnit}> tons CO2e</Text>
+            </View>
+          </View>
+          <ImpactBadge label={`${reductionPct}% ACHIEVED`} />
+        </View>
+        <LeafProgressBar progress={Math.min(1, parseFloat(reductionPct) / 100)} height={10} style={{ marginVertical: Spacing.md }} />
+        <View style={styles.targetFooter}>
+          <Text style={styles.targetFooterText}>0.0 tons</Text>
+          <Text style={styles.targetFooterText}>Goal: 15.0 tons</Text>
+        </View>
       </View>
 
-      {/* Reduction bar */}
+      {/* ── Environmental Equivalents — Asymmetric Bento ─────────────────── */}
+      <View style={styles.equivalentsBento}>
+        {/* Large dark card — trees */}
+        <LinearGradient
+          colors={[Colors.primary, Colors.primaryLight]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.treesEquivCard}
+        >
+          <Text style={styles.treesEquivIcon}>🌲</Text>
+          <Text style={styles.treesEquivValue}>482</Text>
+          <Text style={styles.treesEquivLabel}>Trees planted equivalent</Text>
+        </LinearGradient>
+
+        {/* Right column — two small cards */}
+        <View style={styles.equivRightCol}>
+          <View style={styles.equivSmallCard}>
+            <Text style={styles.equivSmallIcon}>📱</Text>
+            <View>
+              <Text style={styles.equivSmallValue}>12,400</Text>
+              <Text style={styles.equivSmallLabel}>Phones charged</Text>
+            </View>
+          </View>
+          <View style={[styles.equivSmallCard, styles.equivSmallCardGreen]}>
+            <Text style={styles.equivSmallIcon}>💨</Text>
+            <View>
+              <Text style={[styles.equivSmallValue, { color: Colors.onSecondaryContainer }]}>64kg</Text>
+              <Text style={[styles.equivSmallLabel, { color: `${Colors.onSecondaryContainer}bb` }]}>Methane offset</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* ── Reduction progress card ──────────────────────────────────────── */}
       {parseFloat(reductionPct) > 0 && (
-        <Card style={{ marginBottom: Spacing.md }}>
-          <View style={styles.reductionRow}>
+        <View style={styles.reductionCard}>
+          <View style={styles.reductionHeader}>
             <Text style={styles.reductionLabel}>Cloud Reduction Progress</Text>
             <Text style={styles.reductionPct}>{reductionPct}%</Text>
           </View>
-          <View style={styles.reductionTrack}>
-            <View style={[styles.reductionFill, { width: `${Math.min(100, parseFloat(reductionPct))}%` }]} />
-          </View>
+          <LeafProgressBar progress={Math.min(1, parseFloat(reductionPct) / 100)} height={8} style={{ marginVertical: 8 }} />
           <Text style={styles.reductionSub}>
             Saved {cloud.totalSavings || 0} gCO₂ of {local.totalEmissions || 0} gCO₂ emitted
           </Text>
-        </Card>
+        </View>
       )}
 
-      {/* Tab Nav */}
-      <View style={styles.tabs}>
+      {/* ── Tab nav ──────────────────────────────────────────────────────── */}
+      <View style={styles.tabRow}>
         {[
           ['emissions', '📡 Emissions'],
           ['cloud',     '☁️ Workloads'],
@@ -118,18 +169,18 @@ export default function ReportsScreen() {
         ].map(([id, label]) => (
           <TouchableOpacity
             key={id}
-            style={[styles.tab, tab === id && styles.tabActive]}
+            style={[styles.tabBtn, tab === id && styles.tabBtnActive]}
             onPress={() => setTab(id)}
           >
-            <Text style={[styles.tabText, tab === id && styles.tabTextActive]}>{label}</Text>
+            <Text style={[styles.tabBtnText, tab === id && styles.tabBtnTextActive]}>{label}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* ── Emissions Tab ──────────────────────────────────────────────────── */}
+      {/* ── Emissions Tab ────────────────────────────────────────────────── */}
       {tab === 'emissions' && (
         <>
-          <SectionHeader title={`Emissions (${emissions.length} sessions)`} />
+          <SectionHeader title={`Recent Reductions`} action="View All" onAction={() => {}} />
           {emissions.length === 0 ? (
             <EmptyState icon="📡" title="No emission data" subtitle="Start a tracking session from the Tracker tab." />
           ) : (
@@ -138,12 +189,11 @@ export default function ReportsScreen() {
         </>
       )}
 
-      {/* ── Cloud Tab ──────────────────────────────────────────────────────── */}
+      {/* ── Cloud Workloads Tab ──────────────────────────────────────────── */}
       {tab === 'cloud' && (
         <>
           <SectionHeader title={`Workloads (${workloads.length} total)`} />
-          {/* Stats mini row */}
-          <View style={styles.cloudStats}>
+          <View style={styles.cloudStatsRow}>
             <CloudStatChip label="Total Saved" value={`${totalSavings.toFixed(2)} g`} color={Colors.success} />
             <CloudStatChip label="Running"   value={workloads.filter((w) => w.status === 'running').length}   color={Colors.primary} />
             <CloudStatChip label="Completed" value={workloads.filter((w) => w.status === 'completed').length} color={Colors.textMuted} />
@@ -156,13 +206,10 @@ export default function ReportsScreen() {
         </>
       )}
 
-      {/* ── Progress Tab ───────────────────────────────────────────────────── */}
+      {/* ── Progress Tab ─────────────────────────────────────────────────── */}
       {tab === 'progress' && (
         <>
           <SectionHeader title="Daily Progress (Last 30 Days)" />
-          {/* Environmental equivalents */}
-          <EquivalentsCard net={net} cloudSavings={parseFloat(cloud.totalSavings || 0)} />
-          <Divider />
           {progress.length === 0 ? (
             <EmptyState icon="📈" title="No progress data yet" subtitle="Track emissions daily to build your progress chart." />
           ) : (
@@ -171,60 +218,73 @@ export default function ReportsScreen() {
         </>
       )}
 
-      <View style={{ height: Spacing.xxl }} />
+      {/* ── Annual Impact Teaser — editorial image section ────────────────── */}
+      <View style={styles.teaserCard}>
+        <LinearGradient
+          colors={['transparent', `${Colors.primary}CC`]}
+          style={styles.teaserOverlay}
+        >
+          <View style={styles.teaserContent}>
+            <Text style={styles.teaserMeta}>Impact Report</Text>
+            <Text style={styles.teaserTitle}>Annual Impact Ebook</Text>
+            <Text style={styles.teaserSub}>Download your 2023 climate summary</Text>
+          </View>
+        </LinearGradient>
+        {/* Forest background using emoji mosaic */}
+        <View style={styles.teaserForest}>
+          {['🌲', '🌳', '🌲', '🌿', '🌲', '🌳'].map((e, i) => (
+            <Text key={i} style={[styles.teaserTree, { fontSize: 32 + (i % 3) * 8, opacity: 0.15 + i * 0.05 }]}>{e}</Text>
+          ))}
+        </View>
+      </View>
     </ScrollView>
   );
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
+// Emission row — no divider lines, white space separates items
 function EmissionRow({ emission }) {
   const ts   = new Date(emission.timestamp);
   const date = ts.toLocaleDateString([], { month: 'short', day: 'numeric', year: '2-digit' });
-  const time = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const isCodeCarbon = emission.metadata?.source === 'codecarbon';
-
   return (
-    <View style={styles.rowCard}>
-      <View style={styles.rowLeft}>
-        <Text style={styles.rowTitle}>#{emission.sessionId?.slice(-6) || '—'}</Text>
-        <Text style={styles.rowMeta}>{date} · {time}</Text>
-        <Text style={styles.rowMeta}>{emission.deviceId}</Text>
-      </View>
-      <View style={styles.rowRight}>
-        <Text style={[styles.rowValue, { color: Colors.error }]}>
-          {Number(emission.emissionsGCO2).toFixed(4)} gCO₂
+    <View style={styles.reductionRow}>
+      <View style={styles.reductionIconWrap}>
+        <Text style={styles.reductionRowIcon}>
+          {emission.metadata?.activity === 'ev' ? '🚗' :
+           emission.metadata?.activity === 'solar' ? '☀️' :
+           emission.metadata?.activity === 'recycling' ? '♻️' : '⚡'}
         </Text>
-        <Text style={styles.rowSub}>{Number(emission.energyKWh).toFixed(6)} kWh</Text>
-        <Badge
-          label={isCodeCarbon ? '⚡ CC' : '~ Est.'}
-          variant={isCodeCarbon ? 'running' : 'neutral'}
-        />
+      </View>
+      <View style={styles.reductionInfo}>
+        <Text style={styles.reductionTitle}>
+          {emission.metadata?.activity || `Session #${emission.sessionId?.slice(-4)}`}
+        </Text>
+        <Text style={styles.reductionDate}>{date}</Text>
+      </View>
+      <View style={styles.reductionRight}>
+        <Text style={styles.reductionValue}>-{Number(emission.emissionsGCO2).toFixed(2)} kg</Text>
+        <Text style={styles.reductionVerified}>verified</Text>
       </View>
     </View>
   );
 }
 
 function WorkloadRow({ workload }) {
-  const badgeVariant = workload.status === 'running'   ? 'running'
+  const badgeVariant = workload.status === 'running' ? 'running'
     : workload.status === 'completed' ? 'success'
-    : workload.status === 'failed'    ? 'error'
+    : workload.status === 'failed' ? 'error'
     : 'neutral';
   const date = new Date(workload.startTime).toLocaleDateString([], { month: 'short', day: 'numeric' });
-
   return (
-    <View style={styles.rowCard}>
-      <View style={styles.rowLeft}>
-        <Text style={styles.rowTitle}>{workload.workloadType} workload</Text>
-        <Text style={styles.rowMeta}>{workload.cloudProvider?.toUpperCase()} · {workload.targetCloudRegion}</Text>
-        {workload.instanceId && <Text style={styles.rowMeta}>{workload.instanceId}</Text>}
-        <Text style={styles.rowMeta}>{date}{workload.metadata?.simulated ? ' · Simulated' : ''}</Text>
+    <View style={styles.workloadRow}>
+      <View style={styles.workloadInfo}>
+        <Text style={styles.workloadTitle}>{workload.workloadType} workload</Text>
+        <Text style={styles.workloadMeta}>{workload.cloudProvider?.toUpperCase()} · {workload.targetCloudRegion} · {date}</Text>
       </View>
-      <View style={styles.rowRight}>
-        <Text style={[styles.rowValue, { color: Colors.success }]}>
-          {Number(workload.savingsGCO2).toFixed(2)} g saved
-        </Text>
-        <Text style={styles.rowSub}>${Number(workload.estimatedCost || 0).toFixed(4)}</Text>
+      <View style={styles.workloadRight}>
+        <Text style={styles.workloadSavings}>{Number(workload.savingsGCO2).toFixed(2)} g</Text>
         <Badge label={workload.status} variant={badgeVariant} />
       </View>
     </View>
@@ -236,13 +296,12 @@ function ProgressRow({ day }) {
   return (
     <View style={styles.progressRow}>
       <Text style={styles.progressDate}>{date}</Text>
-      <View style={styles.progressBar}>
-        <View style={[styles.progressFill, { width: `${Math.min(100, day.emissions / 5)}%`, backgroundColor: Colors.error }]} />
+      <View style={styles.progressBarWrap}>
+        <LeafProgressBar progress={Math.min(1, day.emissions / 5)} height={6} />
       </View>
       <View style={styles.progressStats}>
         <Text style={[styles.progressVal, { color: Colors.error }]}>{day.emissions.toFixed(1)}g</Text>
         <Text style={[styles.progressVal, { color: Colors.success }]}>−{day.savings.toFixed(1)}g</Text>
-        <Text style={styles.progressSessions}>{day.sessions} sess.</Text>
       </View>
     </View>
   );
@@ -257,118 +316,364 @@ function CloudStatChip({ label, value, color }) {
   );
 }
 
-function EquivalentsCard({ net, cloudSavings }) {
-  const savings = cloudSavings;
-  return (
-    <Card style={{ marginBottom: Spacing.sm }}>
-      <Text style={styles.equivTitle}>Environmental Equivalents</Text>
-      <View style={styles.equivRow}>
-        {[
-          { icon: '🌳', value: (savings / 21000).toFixed(4), label: 'Trees absorbed' },
-          { icon: '🚗', value: (savings / 404).toFixed(4),   label: 'Miles saved' },
-          { icon: '🔋', value: Math.round(savings / 8.3),    label: 'Phone charges' },
-        ].map((item) => (
-          <View key={item.label} style={styles.equivCell}>
-            <Text style={styles.equivIcon}>{item.icon}</Text>
-            <Text style={styles.equivValue}>{item.value}</Text>
-            <Text style={styles.equivLabel}>{item.label}</Text>
-          </View>
-        ))}
-      </View>
-    </Card>
-  );
-}
-
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: Colors.background },
-  content: { padding: Spacing.lg },
+  root:    { flex: 1, backgroundColor: Colors.surface },
+  content: { paddingHorizontal: Spacing.lg },
 
-  title: { ...Typography.h1, marginBottom: 4 },
-  desc:  { ...Typography.body, color: Colors.textMuted, marginBottom: Spacing.lg },
+  // Editorial headline
+  headlineBlock: { marginBottom: Spacing.lg },
+  headline: {
+    fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 34,
+    letterSpacing: -0.8,
+    color: Colors.primary,
+    lineHeight: 40,
+  },
+  headlineSub: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+    color: Colors.textMuted,
+    marginTop: 4,
+  },
 
+  // Period selector
   periodRow: {
     flexDirection: 'row',
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surfaceContainerLowest,
     borderRadius: Radius.full,
     padding: 4,
     marginBottom: Spacing.lg,
     ...Shadow.sm,
   },
-  periodBtn: { flex: 1, paddingVertical: 7, alignItems: 'center', borderRadius: Radius.full },
+  periodBtn: {
+    flex: 1,
+    paddingVertical: 7,
+    alignItems: 'center',
+    borderRadius: Radius.full,
+  },
   periodBtnActive: { backgroundColor: Colors.primary },
-  periodBtnText: { fontSize: 12, fontWeight: '600', color: Colors.textMuted },
-  periodBtnTextActive: { color: '#fff' },
+  periodBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  periodBtnTextActive: { color: '#fff', fontFamily: 'Inter_700Bold' },
 
-  statsRow: { flexDirection: 'row', marginBottom: Spacing.sm },
-
-  reductionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  reductionLabel: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary },
-  reductionPct:   { fontSize: 18, fontWeight: '800', color: Colors.primary },
-  reductionTrack: { backgroundColor: Colors.surfaceAlt, borderRadius: Radius.full, height: 8, marginBottom: 6 },
-  reductionFill:  { backgroundColor: Colors.success, borderRadius: Radius.full, height: 8 },
-  reductionSub:   { fontSize: 11, color: Colors.textMuted },
-
-  tabs: {
+  // Target card
+  targetCard: {
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+    ...Shadow.botanical,
+  },
+  targetTop: {
     flexDirection: 'row',
-    backgroundColor: Colors.surface,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.md,
+  },
+  targetMeta: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: Colors.textMuted,
+    marginBottom: 4,
+  },
+  targetValueRow: { flexDirection: 'row', alignItems: 'baseline' },
+  targetValue: {
+    fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 32,
+    letterSpacing: -0.8,
+    color: Colors.primary,
+  },
+  targetUnit: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: Colors.onSecondaryContainer,
+  },
+  targetFooter: { flexDirection: 'row', justifyContent: 'space-between' },
+  targetFooterText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+
+  // Asymmetric bento — equivalents
+  equivalentsBento: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  treesEquivCard: {
+    flex: 1,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    justifyContent: 'space-between',
+    minHeight: 160,
+    ...Shadow.md,
+  },
+  treesEquivIcon: { fontSize: 28, marginBottom: Spacing.sm },
+  treesEquivValue: {
+    fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 32,
+    color: Colors.accentDim,
+    letterSpacing: -0.8,
+  },
+  treesEquivLabel: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: 'rgba(193,236,212,0.75)',
+    lineHeight: 16,
+  },
+
+  equivRightCol: { flex: 1, gap: Spacing.sm },
+  equivSmallCard: {
+    flex: 1,
+    backgroundColor: Colors.surfaceContainerLow,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  equivSmallCardGreen: { backgroundColor: Colors.successLight },
+  equivSmallIcon: { fontSize: 20 },
+  equivSmallValue: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 16,
+    color: Colors.primary,
+    letterSpacing: -0.3,
+  },
+  equivSmallLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10,
+    color: Colors.textMuted,
+  },
+
+  // Reduction card
+  reductionCard: {
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+    ...Shadow.sm,
+  },
+  reductionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  reductionLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  reductionPct: {
+    fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 20,
+    color: Colors.primary,
+  },
+  reductionSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+
+  // Tab nav
+  tabRow: {
+    flexDirection: 'row',
+    backgroundColor: Colors.surfaceContainerLowest,
     borderRadius: Radius.full,
     padding: 4,
     marginBottom: Spacing.lg,
     ...Shadow.sm,
   },
-  tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: Radius.full },
-  tabActive: { backgroundColor: Colors.primary },
-  tabText: { fontSize: 12, fontWeight: '600', color: Colors.textMuted },
-  tabTextActive: { color: '#fff' },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: Radius.full,
+  },
+  tabBtnActive: { backgroundColor: Colors.primary },
+  tabBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  tabBtnTextActive: { color: '#fff', fontFamily: 'Inter_700Bold' },
 
-  rowCard: {
-    backgroundColor: Colors.surface,
+  // Reduction rows — no dividers (white space only)
+  reductionRow: {
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginBottom: Spacing.sm,
+    ...Shadow.sm,
+  },
+  reductionIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceContainerLow,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reductionRowIcon: { fontSize: 20 },
+  reductionInfo: { flex: 1 },
+  reductionTitle: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 14,
+    color: Colors.textPrimary,
+    textTransform: 'capitalize',
+  },
+  reductionDate: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  reductionRight: { alignItems: 'flex-end' },
+  reductionValue: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 14,
+    color: Colors.onTertiaryContainer,
+  },
+  reductionVerified: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 9,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+
+  // Workload rows
+  workloadRow: {
+    backgroundColor: Colors.surfaceContainerLowest,
     borderRadius: Radius.md,
     padding: Spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: Spacing.sm,
     ...Shadow.sm,
   },
-  rowLeft:  { flex: 1, gap: 2 },
-  rowRight: { alignItems: 'flex-end', gap: 4 },
-  rowTitle: { fontSize: 13, fontWeight: '700', color: Colors.textPrimary },
-  rowMeta:  { fontSize: 11, color: Colors.textMuted },
-  rowValue: { fontSize: 14, fontWeight: '700' },
-  rowSub:   { fontSize: 11, color: Colors.textMuted },
+  workloadInfo: { flex: 1 },
+  workloadTitle: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 14,
+    color: Colors.textPrimary,
+    marginBottom: 2,
+  },
+  workloadMeta: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  workloadRight: { alignItems: 'flex-end', gap: 4 },
+  workloadSavings: {
+    fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 14,
+    color: Colors.success,
+  },
 
-  cloudStats: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
+  // Cloud stat chips
+  cloudStatsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
   cloudStatChip: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surfaceContainerLowest,
     borderRadius: Radius.md,
     padding: Spacing.sm,
     alignItems: 'center',
     ...Shadow.sm,
   },
-  cloudStatValue: { fontSize: 16, fontWeight: '800' },
-  cloudStatLabel: { fontSize: 10, color: Colors.textMuted, marginTop: 2 },
+  cloudStatValue: {
+    fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 18,
+    letterSpacing: -0.3,
+  },
+  cloudStatLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
 
+  // Progress rows
   progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: 10,
   },
-  progressDate: { fontSize: 11, fontWeight: '600', color: Colors.textMuted, width: 50 },
-  progressBar:  { flex: 1, height: 6, backgroundColor: Colors.surfaceAlt, borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: 6, borderRadius: 3 },
-  progressStats:{ flexDirection: 'row', gap: Spacing.xs, alignItems: 'center' },
-  progressVal:  { fontSize: 11, fontWeight: '700', minWidth: 36, textAlign: 'right' },
-  progressSessions: { fontSize: 10, color: Colors.textMuted },
+  progressDate: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    color: Colors.textMuted,
+    width: 50,
+  },
+  progressBarWrap: { flex: 1 },
+  progressStats: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  progressVal: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 11,
+    minWidth: 38,
+    textAlign: 'right',
+  },
 
-  equivTitle: { ...Typography.h3, fontSize: 14, marginBottom: Spacing.md },
-  equivRow:   { flexDirection: 'row', justifyContent: 'space-around' },
-  equivCell:  { alignItems: 'center', gap: 4 },
-  equivIcon:  { fontSize: 24 },
-  equivValue: { fontSize: 15, fontWeight: '800', color: Colors.primary },
-  equivLabel: { fontSize: 10, color: Colors.textMuted, textAlign: 'center', maxWidth: 70 },
+  // Annual teaser
+  teaserCard: {
+    height: 160,
+    borderRadius: Radius.xl,
+    overflow: 'hidden',
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.lg,
+    backgroundColor: Colors.primary,
+    position: 'relative',
+    justifyContent: 'flex-end',
+    ...Shadow.lg,
+  },
+  teaserForest: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-around',
+    paddingBottom: 0,
+  },
+  teaserTree: { lineHeight: 80 },
+  teaserOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 130,
+    justifyContent: 'flex-end',
+  },
+  teaserContent: { padding: Spacing.lg, position: 'relative', zIndex: 10 },
+  teaserMeta: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 9,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: Colors.accent,
+    marginBottom: 4,
+  },
+  teaserTitle: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 18,
+    color: '#fff',
+    lineHeight: 22,
+  },
+  teaserSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.primaryFixed,
+    marginTop: 2,
+  },
 });

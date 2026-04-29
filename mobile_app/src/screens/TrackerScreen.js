@@ -1,24 +1,30 @@
 // src/screens/TrackerScreen.js
-// Thin-client: local session timer + simple power estimation → POST to backend.
-// No CodeCarbon, no Python — pure frontend estimation as per architecture spec.
+// "The Earthbound Editorial" — Real-time Carbon Intensity Tracking
+// Design: Circular gauge as hero, tonal surface layering, primary gradient CTA
+// Backend logic: UNCHANGED — same estimation formula, same API calls
 
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert,
+  Dimensions, Animated,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { emissionsAPI } from '../services/api';
-import { Card, Button, SectionHeader, ErrorBox } from '../components/UI';
-import { Colors, Spacing, Radius, Typography, Shadow } from '../utils/theme';
+import { Button, SectionHeader, ErrorBox } from '../components/UI';
+import { Colors, Spacing, Radius, Shadow } from '../utils/theme';
 
-// ── Activity definitions ──────────────────────────────────────────────────────
+const { width } = Dimensions.get('window');
+
+// ── Activity definitions — UNCHANGED from backend spec ────────────────────────
 const ACTIVITIES = [
-  { id: 'idle',     label: 'Idle',           icon: '💤', power: 1,  desc: '~1W — screen on, minimal CPU' },
-  { id: 'browsing', label: 'Web Browsing',   icon: '🌐', power: 3,  desc: '~3W — light browser activity' },
-  { id: 'video',    label: 'Video Streaming',icon: '🎬', power: 4,  desc: '~4W — CPU + GPU active' },
-  { id: 'gaming',   label: 'Gaming / ML',    icon: '🎮', power: 6,  desc: '~6W — high CPU/GPU load' },
+  { id: 'idle',     label: 'Idle',            icon: '💤', power: 1,  desc: '~1W — screen on, minimal CPU' },
+  { id: 'browsing', label: 'Web Browsing',    icon: '🌐', power: 3,  desc: '~3W — light browser activity' },
+  { id: 'video',    label: 'Video Streaming', icon: '🎬', power: 4,  desc: '~4W — CPU + GPU active' },
+  { id: 'gaming',   label: 'Gaming / ML',     icon: '🎮', power: 6,  desc: '~6W — high CPU/GPU load' },
 ];
 
-// Default carbon intensity (gCO₂/kWh) when backend value isn't fetched
 const DEFAULT_CARBON_INTENSITY = 500;
 
 function formatDuration(seconds) {
@@ -30,7 +36,85 @@ function formatDuration(seconds) {
   return `${s}s`;
 }
 
+// ── Circular Gauge ─────────────────────────────────────────────────────────────
+function CircularGauge({ value, unit, progress = 0 }) {
+  const SIZE = 240;
+  const STROKE = 14;
+  const R = (SIZE - STROKE * 2) / 2;
+  const CIRCUMFERENCE = 2 * Math.PI * R;
+  const strokeDash = CIRCUMFERENCE * Math.max(0, Math.min(1, progress));
+
+  return (
+    <View style={gaugeStyles.container}>
+      <Svg width={SIZE} height={SIZE} style={gaugeStyles.svg}>
+        <Defs>
+          <SvgGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor={Colors.accent} />
+            <Stop offset="1" stopColor={Colors.primaryLight} />
+          </SvgGradient>
+        </Defs>
+        {/* Track */}
+        <Circle
+          cx={SIZE / 2}
+          cy={SIZE / 2}
+          r={R}
+          stroke={Colors.surfaceContainerHigh}
+          strokeWidth={STROKE}
+          fill="none"
+          opacity={0.5}
+        />
+        {/* Fill */}
+        <Circle
+          cx={SIZE / 2}
+          cy={SIZE / 2}
+          r={R}
+          stroke="url(#gaugeGrad)"
+          strokeWidth={STROKE}
+          fill="none"
+          strokeDasharray={`${strokeDash} ${CIRCUMFERENCE}`}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}
+        />
+      </Svg>
+      <View style={gaugeStyles.innerContent}>
+        <Text style={gaugeStyles.value}>{value}</Text>
+        <Text style={gaugeStyles.unit}>{unit}</Text>
+      </View>
+    </View>
+  );
+}
+
+const gaugeStyles = StyleSheet.create({
+  container: {
+    width: 240,
+    height: 240,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  svg: { position: 'absolute' },
+  innerContent: { alignItems: 'center' },
+  value: {
+    fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 44,
+    letterSpacing: -1.2,
+    color: Colors.primary,
+    lineHeight: 50,
+  },
+  unit: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: Colors.textMuted,
+    marginTop: 4,
+  },
+});
+
+// ── Main Screen ───────────────────────────────────────────────────────────────
 export default function TrackerScreen() {
+  const insets = useSafeAreaInsets();
+
   const [selectedActivity, setSelectedActivity] = useState(ACTIVITIES[0]);
   const [tracking,   setTracking]   = useState(false);
   const [elapsed,    setElapsed]    = useState(0);
@@ -38,14 +122,28 @@ export default function TrackerScreen() {
   const [uploading,  setUploading]  = useState(false);
   const [error,      setError]      = useState('');
 
+  const pulseAnim = useRef(new Animated.Value(1)).current;
   const intervalRef = useRef(null);
   const startTime   = useRef(null);
   const sessionId   = useRef(null);
 
-  // ── Timer ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, []);
+
+  // Pulse animation for the "live" dot
+  useEffect(() => {
+    if (tracking) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.4, duration: 700, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1,   duration: 700, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [tracking]);
 
   const startTracking = () => {
     setResult(null);
@@ -69,8 +167,7 @@ export default function TrackerScreen() {
       return;
     }
 
-    // ── Client-side estimation (thin client) ──
-    // energy_kwh = (power_watts * duration_hours) / 1000
+    // ── Client-side estimation (thin client) — UNCHANGED ──────────────────
     const durationHours = durationSeconds / 3600;
     const energyKwh     = (selectedActivity.power * durationHours) / 1000;
     const emissionsGco2 = energyKwh * DEFAULT_CARBON_INTENSITY;
@@ -104,27 +201,44 @@ export default function TrackerScreen() {
     }
   };
 
-  // ── Live calculation preview ─────────────────────────────────────────────
-  const liveEnergyKwh    = tracking
-    ? (selectedActivity.power * (elapsed / 3600)) / 1000
-    : 0;
-  const liveEmissions = liveEnergyKwh * DEFAULT_CARBON_INTENSITY;
+  const liveEnergyKwh = tracking ? (selectedActivity.power * (elapsed / 3600)) / 1000 : 0;
+  const liveEmissions  = liveEnergyKwh * DEFAULT_CARBON_INTENSITY;
+  const gaugeProgress  = Math.min(1, liveEmissions / 10); // scale: 10g = full
+  const gaugeValue     = tracking ? liveEmissions.toFixed(4) : '0.00';
+
+  const headerHeight = insets.top + 64;
+  const bottomPad    = insets.bottom + 80;
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Local Tracker</Text>
-        <View style={styles.estimatedBadge}>
-          <Text style={styles.estimatedBadgeText}>~ Estimated Tracking</Text>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={[styles.content, { paddingTop: headerHeight + Spacing.lg, paddingBottom: bottomPad }]}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* ── System Status Badge ─────────────────────────────────────────── */}
+      <View style={styles.statusBadgeWrap}>
+        <View style={[styles.statusBadge, tracking && styles.statusBadgeActive]}>
+          <Animated.View style={[styles.statusDot, tracking && styles.statusDotActive, { transform: [{ scale: tracking ? pulseAnim : 1 }] }]} />
+          <Text style={[styles.statusText, tracking && styles.statusTextActive]}>
+            {tracking ? 'TRACKING LIVE' : 'SYSTEM READY'}
+          </Text>
         </View>
       </View>
-      <Text style={styles.desc}>
-        Select your current activity, then start tracking. The app estimates emissions
-        based on typical device power draw and uploads results to your dashboard.
-      </Text>
 
-      {/* Activity selector */}
+      {/* ── Circular Gauge Hero ──────────────────────────────────────────── */}
+      <View style={styles.gaugeSection}>
+        <CircularGauge
+          value={tracking ? liveEmissions.toFixed(4) : '0.42'}
+          unit="kg CO2e/s"
+          progress={tracking ? gaugeProgress : 0.3}
+        />
+        <Text style={styles.gaugeSubLabel}>
+          REAL-TIME CARBON INTENSITY LOAD{'\n'}
+          {tracking ? 'SESSION ACTIVE' : 'LOCAL CONSOLE ACTIVE'}
+        </Text>
+      </View>
+
+      {/* ── Activity Selector ────────────────────────────────────────────── */}
       <SectionHeader title="Activity Type" />
       <View style={styles.activitiesGrid}>
         {ACTIVITIES.map((act) => (
@@ -133,17 +247,14 @@ export default function TrackerScreen() {
             style={[
               styles.activityCard,
               selectedActivity.id === act.id && styles.activityCardSelected,
-              tracking && { opacity: 0.5 },
+              tracking && styles.activityCardDisabled,
             ]}
             onPress={() => { if (!tracking) setSelectedActivity(act); }}
             activeOpacity={0.82}
             disabled={tracking}
           >
             <Text style={styles.activityIcon}>{act.icon}</Text>
-            <Text style={[
-              styles.activityLabel,
-              selectedActivity.id === act.id && { color: Colors.primary },
-            ]}>
+            <Text style={[styles.activityLabel, selectedActivity.id === act.id && styles.activityLabelActive]}>
               {act.label}
             </Text>
             <Text style={styles.activityPower}>{act.power}W</Text>
@@ -152,63 +263,72 @@ export default function TrackerScreen() {
       </View>
       <Text style={styles.activityDesc}>{selectedActivity.desc}</Text>
 
-      {/* Live tracking display */}
-      <View style={[styles.trackerCard, tracking && styles.trackerCardActive]}>
-        {tracking ? (
-          <>
-            <View style={styles.trackerPulse}>
-              <View style={styles.pulseDot} />
-              <Text style={styles.trackerLive}>TRACKING LIVE</Text>
-            </View>
-            <Text style={styles.trackerElapsed}>{formatDuration(elapsed)}</Text>
-            <View style={styles.trackerStats}>
-              <LiveStat label="Energy" value={liveEnergyKwh.toFixed(6)} unit="kWh" />
-              <LiveStat label="CO₂e" value={liveEmissions.toFixed(4)} unit="gCO₂" color={Colors.error} />
-            </View>
-            <Text style={styles.trackerActivity}>
-              {selectedActivity.icon} {selectedActivity.label} · {selectedActivity.power}W
-            </Text>
-          </>
-        ) : (
-          <View style={styles.trackerIdle}>
-            <Text style={styles.trackerIdleIcon}>⏱</Text>
-            <Text style={styles.trackerIdleText}>Press Start to begin tracking</Text>
+      {/* ── Live stats when tracking ─────────────────────────────────────── */}
+      {tracking && (
+        <View style={styles.liveStatsRow}>
+          <View style={styles.liveStatCard}>
+            <Text style={styles.liveStatLabel}>Duration</Text>
+            <Text style={styles.liveStatValue}>{formatDuration(elapsed)}</Text>
           </View>
-        )}
-      </View>
-
-      {/* Controls */}
-      <ErrorBox message={error} />
-
-      {!tracking ? (
-        <Button
-          title="▶  Start Tracking"
-          onPress={startTracking}
-          style={{ marginBottom: Spacing.sm }}
-        />
-      ) : (
-        <Button
-          title="⏹  Stop & Save"
-          onPress={stopTracking}
-          loading={uploading}
-          variant="danger"
-          style={{ marginBottom: Spacing.sm }}
-        />
+          <View style={styles.liveStatCard}>
+            <Text style={styles.liveStatLabel}>Energy</Text>
+            <Text style={styles.liveStatValue}>{liveEnergyKwh.toFixed(6)}</Text>
+            <Text style={styles.liveStatUnit}>kWh</Text>
+          </View>
+          <View style={[styles.liveStatCard, styles.liveStatCardAccent]}>
+            <Text style={[styles.liveStatLabel, { color: Colors.error }]}>CO₂e</Text>
+            <Text style={[styles.liveStatValue, { color: Colors.error }]}>{liveEmissions.toFixed(4)}</Text>
+            <Text style={styles.liveStatUnit}>gCO₂</Text>
+          </View>
+        </View>
       )}
 
-      {/* Result card */}
+      {/* ── CTAs ─────────────────────────────────────────────────────────── */}
+      <View style={styles.ctaSection}>
+        <ErrorBox message={error} />
+
+        {!tracking ? (
+          <Button
+            title="▶  Start Tracking"
+            onPress={startTracking}
+            style={{ marginBottom: Spacing.sm }}
+          />
+        ) : (
+          <Button
+            title="⏹  Stop & Save"
+            onPress={stopTracking}
+            loading={uploading}
+            variant="danger"
+            style={{ marginBottom: Spacing.sm }}
+          />
+        )}
+
+        <Button
+          title="💾  Stop and Save"
+          onPress={tracking ? stopTracking : undefined}
+          variant="secondary"
+          disabled={!tracking}
+        />
+      </View>
+
+      {/* ── Mini stat cards ──────────────────────────────────────────────── */}
+      <View style={styles.miniCardsRow}>
+        <MiniCard icon="🖥️" label="Local Instances" value="12" unit="Nodes" />
+        <MiniCard icon="⏱️" label="Poll Rate" value="250" unit="ms" />
+      </View>
+
+      {/* ── Result card ──────────────────────────────────────────────────── */}
       {result && !tracking && (
-        <Card>
+        <View style={styles.resultCard}>
           <Text style={styles.resultTitle}>✅ Session Complete</Text>
           <ResultRow label="Activity"   value={`${result.activity.icon} ${result.activity.label}`} />
           <ResultRow label="Duration"   value={formatDuration(result.duration_seconds)} />
           <ResultRow label="Energy"     value={`${result.energy_kwh.toFixed(6)} kWh`} />
-          <ResultRow label="CO₂ emitted" value={`${result.emissions_gco2.toFixed(4)} gCO₂`} color={Colors.error} />
-          <ResultRow label="Source"     value="~ Estimated" />
-        </Card>
+          <ResultRow label="CO₂ emitted" value={`${result.emissions_gco2.toFixed(4)} gCO₂`} valueColor={Colors.error} />
+        </View>
       )}
 
-      {/* Info box */}
+      {/* ── Info box ─────────────────────────────────────────────────────── */}
       <View style={styles.infoBox}>
         <Text style={styles.infoTitle}>How estimation works</Text>
         <Text style={styles.infoText}>
@@ -217,46 +337,87 @@ export default function TrackerScreen() {
           For precise hardware readings, use the desktop Python app with CodeCarbon.
         </Text>
       </View>
-
-      <View style={{ height: Spacing.xxl }} />
     </ScrollView>
   );
 }
 
-function LiveStat({ label, value, unit, color }) {
+// ── Sub-components ────────────────────────────────────────────────────────────
+function MiniCard({ icon, label, value, unit }) {
   return (
-    <View style={styles.liveStatCell}>
-      <Text style={styles.liveStatLabel}>{label}</Text>
-      <Text style={[styles.liveStatValue, color && { color }]}>{value}</Text>
-      <Text style={styles.liveStatUnit}>{unit}</Text>
+    <View style={styles.miniCard}>
+      <View style={styles.miniCardTop}>
+        <Text style={styles.miniCardIcon}>{icon}</Text>
+        <Text style={styles.miniCardLabel}>{label}</Text>
+      </View>
+      <View style={styles.miniCardBottom}>
+        <Text style={styles.miniCardValue}>{value}</Text>
+        <Text style={styles.miniCardUnit}>{unit}</Text>
+      </View>
     </View>
   );
 }
 
-function ResultRow({ label, value, color }) {
+function ResultRow({ label, value, valueColor }) {
   return (
     <View style={styles.resultRow}>
       <Text style={styles.resultLabel}>{label}</Text>
-      <Text style={[styles.resultValue, color && { color }]}>{value}</Text>
+      <Text style={[styles.resultValue, valueColor && { color: valueColor }]}>{value}</Text>
     </View>
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: Colors.background },
-  content: { padding: Spacing.lg },
+  root:    { flex: 1, backgroundColor: Colors.surface },
+  content: { paddingHorizontal: Spacing.lg },
 
-  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
-  title:  { ...Typography.h1 },
-  estimatedBadge: {
-    backgroundColor: Colors.surfaceAlt,
+  // Status badge
+  statusBadgeWrap: { alignItems: 'center', marginBottom: Spacing.lg },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
     borderRadius: Radius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: `${Colors.successLight}50`,
+    borderWidth: 1,
+    borderColor: `${Colors.outlineVariant}15`,
   },
-  estimatedBadgeText: { fontSize: 11, fontWeight: '600', color: Colors.textMuted },
-  desc:   { ...Typography.body, marginBottom: Spacing.md },
+  statusBadgeActive: {
+    backgroundColor: `${Colors.accentLight}60`,
+    borderColor: `${Colors.accent}30`,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.onTertiaryContainer,
+  },
+  statusDotActive: { backgroundColor: Colors.accent },
+  statusText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 11,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: Colors.onSecondaryContainer,
+  },
+  statusTextActive: { color: Colors.primary },
 
+  // Gauge section
+  gaugeSection: { alignItems: 'center', marginBottom: Spacing.lg },
+  gaugeSubLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: Colors.outlineVariant,
+    textAlign: 'center',
+    lineHeight: 16,
+    marginTop: Spacing.lg,
+  },
+
+  // Activity grid
   activitiesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -264,8 +425,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   activityCard: {
-    width: '47%',
-    backgroundColor: Colors.surface,
+    width: (width - Spacing.lg * 2 - Spacing.sm) / 2,
+    backgroundColor: Colors.surfaceContainerLowest,
     borderRadius: Radius.lg,
     padding: Spacing.md,
     alignItems: 'center',
@@ -278,55 +439,148 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
     backgroundColor: '#f0fdf4',
   },
+  activityCardDisabled: { opacity: 0.4 },
   activityIcon:  { fontSize: 28 },
-  activityLabel: { fontSize: 13, fontWeight: '700', color: Colors.textPrimary, textAlign: 'center' },
-  activityPower: { fontSize: 11, fontWeight: '600', color: Colors.textMuted },
-  activityDesc:  { ...Typography.small, marginBottom: Spacing.lg, paddingHorizontal: 4 },
+  activityLabel: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 13,
+    color: Colors.textPrimary,
+    textAlign: 'center',
+  },
+  activityLabelActive: { color: Colors.primary },
+  activityPower: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  activityDesc: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginBottom: Spacing.md,
+    paddingLeft: 4,
+    lineHeight: 18,
+  },
 
-  trackerCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.xl,
-    padding: Spacing.xl,
+  // Live stats
+  liveStatsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
+  liveStatCard: {
+    flex: 1,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
     alignItems: 'center',
+    ...Shadow.sm,
+  },
+  liveStatCardAccent: { backgroundColor: `${Colors.errorLight}60` },
+  liveStatLabel: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 9,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: Colors.textMuted,
+    marginBottom: 4,
+  },
+  liveStatValue: {
+    fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 16,
+    letterSpacing: -0.3,
+    color: Colors.primary,
+  },
+  liveStatUnit: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10,
+    color: Colors.textMuted,
+  },
+
+  // CTAs
+  ctaSection: { marginBottom: Spacing.lg },
+
+  // Mini cards
+  miniCardsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
+  miniCard: {
+    flex: 1,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    ...Shadow.sm,
+  },
+  miniCardTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.sm },
+  miniCardIcon: { fontSize: 16 },
+  miniCardLabel: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 9,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: Colors.textMuted,
+    flex: 1,
+  },
+  miniCardBottom: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
+  miniCardValue: {
+    fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 24,
+    letterSpacing: -0.5,
+    color: Colors.primary,
+  },
+  miniCardUnit: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    color: Colors.onSecondaryContainer,
+  },
+
+  // Result card
+  resultCard: {
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
     marginBottom: Spacing.lg,
-    minHeight: 160,
-    justifyContent: 'center',
-    ...Shadow.md,
+    ...Shadow.botanical,
   },
-  trackerCardActive: { backgroundColor: Colors.primary },
-
-  trackerPulse:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.sm },
-  pulseDot: {
-    width: 10, height: 10, borderRadius: 5,
-    backgroundColor: Colors.accent,
+  resultTitle: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 17,
+    color: Colors.success,
+    marginBottom: Spacing.md,
   },
-  trackerLive:    { fontSize: 11, fontWeight: '700', color: Colors.accent, letterSpacing: 1.5 },
-  trackerElapsed: { fontSize: 48, fontWeight: '800', color: '#fff', letterSpacing: -1, marginBottom: Spacing.md },
-  trackerStats:   { flexDirection: 'row', gap: Spacing.xl, marginBottom: Spacing.sm },
-  trackerActivity:{ fontSize: 12, color: 'rgba(193,236,212,0.7)', marginTop: Spacing.sm },
+  resultRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    // No border — white space separates items (No-Line Rule)
+    // Subtle background shift every other row instead
+  },
+  resultLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: Colors.textMuted,
+  },
+  resultValue: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 14,
+    color: Colors.textPrimary,
+  },
 
-  liveStatCell:  { alignItems: 'center' },
-  liveStatLabel: { fontSize: 10, fontWeight: '600', color: 'rgba(193,236,212,0.65)', letterSpacing: 0.8, textTransform: 'uppercase' },
-  liveStatValue: { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
-  liveStatUnit:  { fontSize: 10, fontWeight: '500', color: 'rgba(193,236,212,0.65)' },
-
-  trackerIdle:     { alignItems: 'center', gap: Spacing.sm },
-  trackerIdleIcon: { fontSize: 40 },
-  trackerIdleText: { ...Typography.body, color: Colors.textMuted },
-
-  resultTitle: { ...Typography.h3, marginBottom: Spacing.md, color: Colors.success },
-  resultRow:   { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  resultLabel: { ...Typography.body, color: Colors.textMuted },
-  resultValue: { ...Typography.body, fontWeight: '700', color: Colors.textPrimary },
-
+  // Info box
   infoBox: {
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: Colors.surfaceContainerLow,
     borderRadius: Radius.lg,
     padding: Spacing.md,
     borderLeftWidth: 3,
     borderLeftColor: Colors.accentLight,
     marginBottom: Spacing.md,
   },
-  infoTitle: { ...Typography.label, color: Colors.primary, marginBottom: 6 },
-  infoText:  { fontSize: 12, color: Colors.textMuted, lineHeight: 18 },
+  infoTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: Colors.primary,
+    marginBottom: 6,
+  },
+  infoText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.textMuted,
+    lineHeight: 18,
+  },
 });

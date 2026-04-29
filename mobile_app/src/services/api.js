@@ -5,7 +5,7 @@ import axios from 'axios';
 
 // ── Config ─────────────────────────────────────────────────────────────────
 // Change this to your backend URL (e.g. "http://192.168.1.x:5000/api" on LAN)
-const BASE_URL = 'http://192.168.1.4:5000/api';
+const BASE_URL = 'http://10.11.252.235:5000/api';
 
 let _tokenGetter = null;
 
