@@ -1,266 +1,206 @@
 # =============================================================================
-# CARBONTRACK — .gitignore
-# Covers: Node.js backend, React frontend, Python desktop app, React Native
+# CARBONTRACK - .gitignore
+# Monorepo: Node.js Backend + React Frontend + React Native + Python Desktop
 # =============================================================================
 
 
-# =============================================================================
-# SECRETS & ENVIRONMENT VARIABLES  ← most important, never commit these
-# =============================================================================
+###############################################################################
+# Environment & Secrets
+###############################################################################
+
 .env
-.env.local
-.env.development
-.env.development.local
-.env.test
-.env.test.local
-.env.production
-.env.production.local
-.env.staging
+.env.*
+!.env.example
 
-# Specific env files across the monorepo
-web_app/backend/.env
-web_app/frontend/.env
-python_app/.env
-mobile_app/.env
+**/.env
+**/.env.*
 
-# AWS credentials (never commit)
 .aws/
-aws-credentials.json
+*.pem
+*.key
+*.p12
+*.p8
+*.crt
+*.csr
+
 credentials.json
+aws-credentials.json
 
 
-# =============================================================================
-# NODE / JAVASCRIPT
-# =============================================================================
-node_modules/
-web_app/backend/node_modules/
-web_app/frontend/node_modules/
-mobile_app/node_modules/
+###############################################################################
+# Node.js
+###############################################################################
 
-# Build output
-web_app/frontend/dist/
-web_app/frontend/dist-ssr/
-web_app/frontend/.vite/
-build/
-out/
+**/node_modules/
 
-# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-*.log
 
-# Lock files (keep package-lock.json or yarn.lock, not both)
-# Uncomment the one you DON'T use:
-# package-lock.json
-# yarn.lock
-# pnpm-lock.yaml
+.npm/
+.pnpm-store/
 
-# Cache
-.npm
 .eslintcache
 .stylelintcache
-.parcel-cache/
 
-# TypeScript
 *.tsbuildinfo
 
-# Vite
-*.local
+
+###############################################################################
+# Build Output
+###############################################################################
+
+dist/
+build/
+out/
+coverage/
+.nyc_output/
+
+**/dist/
+**/build/
+**/.vite/
+**/dist-ssr/
 
 
-# =============================================================================
-# PYTHON
-# =============================================================================
-# Virtual environments
-venv/
-env/
-.venv/
-.env/
-ENV/
-python_app/venv/
-python_app/.venv/
+###############################################################################
+# Python
+###############################################################################
 
-# Bytecode
 __pycache__/
 *.py[cod]
-*$py.class
 *.pyo
 *.pyd
 
-# Distribution / packaging
-dist/
-build/
+venv/
+.venv/
+ENV/
+env/
+
+.pytest_cache/
+.mypy_cache/
+.pyright/
+.tox/
+.coverage
+coverage.xml
+htmlcov/
+
 *.egg-info/
-*.egg
 .eggs/
 wheels/
-*.whl
-MANIFEST
 
-# PyInstaller
-*.manifest
-*.spec
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-coverage.xml
-*.cover
-*.py,cover
-
-# CodeCarbon output files (auto-generated during tracking)
 emissions.csv
-python_app/emissions.csv
 codecarbon.log
-python_app/codecarbon.log
 
-# Jupyter
 .ipynb_checkpoints/
-*.ipynb
-
-# mypy / pyright
-.mypy_cache/
-.dmypy.json
-dmypy.json
-.pyright/
 
 
-# =============================================================================
-# REACT NATIVE / EXPO
-# =============================================================================
-# Expo
-mobile_app/.expo/
-mobile_app/dist/
-mobile_app/web-build/
+###############################################################################
+# React Native / Expo
+###############################################################################
+
+.expo/
+**/.expo/
+
 expo-env.d.ts
 
-# Native generated folders (Expo managed — do not commit)
-mobile_app/ios/
-mobile_app/android/
-mobile_app/.kotlin/
+android/
+ios/
 
-# Metro bundler
+web-build/
 .metro-health-check*
 
-# Expo example leftovers
-mobile_app/app-example/
+.kotlin/
 
 
-# =============================================================================
-# DATABASE
-# =============================================================================
-# Local MongoDB data directory (if running mongo locally)
-data/db/
+###############################################################################
+# Database
+###############################################################################
+
 *.db
 *.sqlite
 *.sqlite3
 
-# MongoDB dump files
+data/db/
 dump/
 mongodump/
 
 
-# =============================================================================
-# OPERATING SYSTEM
-# =============================================================================
-# macOS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Icon?
+###############################################################################
+# IDEs
+###############################################################################
 
-# Windows
-Thumbs.db
-desktop.ini
-$RECYCLE.BIN/
-
-# Linux
-*~
-
-
-# =============================================================================
-# EDITORS & IDEs
-# =============================================================================
-# VS Code (keep .vscode/extensions.json if you want, ignore the rest)
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-
-# JetBrains (IntelliJ, PyCharm, WebStorm)
+.vscode/
 .idea/
-*.iml
-*.iws
-*.ipr
 
-# Vim / Neovim
+*.iml
+*.ipr
+*.iws
+
 *.swp
 *.swo
 *.swn
-Session.vim
-.netrwhist
-
-# Emacs
-*~
-\#*\#
-.\#*
-
-# Sublime Text
-*.sublime-project
-*.sublime-workspace
 
 
-# =============================================================================
-# TESTING & COVERAGE
-# =============================================================================
-coverage/
-.nyc_output/
-test-results/
-playwright-report/
-.playwright/
+###############################################################################
+# Operating System
+###############################################################################
+
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+.Spotlight-V100
+.Trashes
+._*
 
 
-# =============================================================================
-# DOCKER (if added later)
-# =============================================================================
-# Uncomment if you add Docker:
-# .dockerignore is separate, but these are common local artifacts
-# docker-compose.override.yml
+###############################################################################
+# Logs
+###############################################################################
+
+*.log
+logs/
 
 
-# =============================================================================
-# MISCELLANEOUS
-# =============================================================================
-# Compressed files
-*.zip
-*.tar
-*.tar.gz
-*.rar
-*.7z
+###############################################################################
+# Temporary Files
+###############################################################################
 
-# Temporary files
 *.tmp
 *.temp
 *.bak
 *.orig
 *.pid
 
-# SSL certificates (never commit private keys)
-*.pem
-*.key
-*.p12
-*.p8
-*.mobileprovision
-*.crt
-*.csr
 
-# Uploaded/generated files at runtime
+###############################################################################
+# Archives
+###############################################################################
+
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+
+###############################################################################
+# Runtime Files
+###############################################################################
+
 uploads/
 python_app/outputs/
+
+
+###############################################################################
+# Optional
+###############################################################################
+
+# Ignore lock files only if you intentionally don't use them.
+# Normally they SHOULD be committed.
+
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
