@@ -12,15 +12,15 @@ Carbon Tracker is a full-stack application that measures real-time energy consum
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
 - [Screenshots](#screenshots)
-<<<<<<< HEAD
-=======
+  <<<<<<< HEAD
+  =======
   - [System Design](#system-design)
   - [Web App — Authentication](#web-app--authentication)
   - [Web App — Dashboard](#web-app--dashboard)
   - [Web App — Cloud Optimization](#web-app--cloud-optimization)
   - [Web App — Reports](#web-app--reports)
   - [Desktop App (PyQt6)](#desktop-app-pyqt6)
->>>>>>> 319a830 (Final push)
+    > > > > > > > 319a830 (Final push)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Backend Setup](#backend-setup)
@@ -37,12 +37,14 @@ Carbon Tracker is a full-stack application that measures real-time energy consum
 ## Features
 
 ### 🔬 Local Emission Tracking
+
 - Real-time CPU/GPU energy measurement via **CodeCarbon** on the Python desktop app
 - Fallback estimation using duration × power model when CodeCarbon is unavailable
 - Sessions tagged with source (`codecarbon` vs `estimated`) and synced to the backend
 - Mobile activity-based estimation (idle, browsing, video, gaming)
 
 ### ☁️ Cloud Carbon Optimization
+
 - Browse AWS regions sorted by carbon intensity (gCO₂/kWh)
 - Calculate potential savings before committing any workload
 - Launch real EC2 instances in green regions (eu-north-1 Stockholm = 8 gCO₂/kWh, 98% renewable)
@@ -50,12 +52,14 @@ Carbon Tracker is a full-stack application that measures real-time energy consum
 - Simulate workloads for tracking without real infrastructure cost
 
 ### 📊 Reporting & Insights
+
 - **Summary report**: local vs cloud emissions across configurable periods (day/week/month/year)
 - **Insights**: AI-generated recommendations based on 30-day emission patterns
 - **Progress**: daily emissions vs savings chart with Q3 reduction target tracking
 - Environmental equivalents (trees absorbed, miles driven, phone charges)
 
 ### 🔐 Authentication
+
 - JWT-based auth with 7-day token expiry
 - Bcrypt password hashing
 - Protected routes on both frontend and API
@@ -94,28 +98,30 @@ Carbon Tracker is a full-stack application that measures real-time energy consum
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Web Frontend | React 19, Vite 7, Tailwind CSS 4, Recharts, React Router 7 |
-| Backend | Node.js, Express 5, Mongoose 7, JWT, bcryptjs |
-| Database | MongoDB (local or Atlas) |
-| Python Desktop | PyQt6, CodeCarbon, requests |
-| Mobile | Expo 54, React Native 0.81, expo-router, react-native-svg |
-| Cloud | AWS SDK v3 (EC2, CloudWatch, S3, STS) |
-| Auth | JSON Web Tokens, bcryptjs |
+| Layer          | Technology                                                 |
+| -------------- | ---------------------------------------------------------- |
+| Web Frontend   | React 19, Vite 7, Tailwind CSS 4, Recharts, React Router 7 |
+| Backend        | Node.js, Express 5, Mongoose 7, JWT, bcryptjs              |
+| Database       | MongoDB (local or Atlas)                                   |
+| Python Desktop | PyQt6, CodeCarbon, requests                                |
+| Mobile         | Expo 54, React Native 0.81, expo-router, react-native-svg  |
+| Cloud          | AWS SDK v3 (EC2, CloudWatch, S3, STS)                      |
+| Auth           | JSON Web Tokens, bcryptjs                                  |
 
 ---
 
 ## Screenshots
 
 <<<<<<< HEAD
+
 ### Web Dashboard — Overview
 
 The main dashboard shows live emission stats, recent tracking sessions, and environmental impact equivalents. Data auto-refreshes every 30 seconds.
 
-![Dashboard Overview](https://via.placeholder.com/900x500/f9f9f8/012d1d?text=Dashboard+Screenshot)
+![Dashboard Overview](screenshots/fig5.3_dashboard_overview.png)
 
 **Key panels:**
+
 - **Local Emissions** — total gCO₂ from tracked sessions
 - **Energy Usage** — kWh consumed during the period
 - **Cloud Savings** — gCO₂ avoided by using low-carbon regions
@@ -128,9 +134,10 @@ The main dashboard shows live emission stats, recent tracking sessions, and envi
 
 After selecting an AWS region and calculating savings, the Results tab shows the comparison and exposes launch/simulate actions.
 
-![Cloud Optimization](https://via.placeholder.com/900x500/f9f9f8/012d1d?text=Cloud+Optimization+Screenshot)
+![Cloud Optimization](screenshots/fig5.4_cloud_optimization.png)
 
 **Key elements:**
+
 - Region picker sorted by carbon intensity (Stockholm at 8 gCO₂/kWh shown first)
 - Side-by-side local vs cloud emissions
 - Reduction percentage and energy estimate
@@ -152,8 +159,8 @@ The PyQt6 app handles login, starts a CodeCarbon tracking session, and exposes t
 
 ### Mobile App (React Native / Expo)
 
-The mobile app provides a circular gauge for real-time CO₂ intensity, activity-type selector, and a full reports/workloads view.
-=======
+# The mobile app provides a circular gauge for real-time CO₂ intensity, activity-type selector, and a full reports/workloads view.
+
 ### System Design
 
 **Figure 4.1 — System Architecture Diagram**
@@ -297,7 +304,8 @@ The Active Instances tab listing running EC2 instances across all monitored regi
 ![API Response Times](screenshots/fig5.13_api_response_times.png)
 
 Performance benchmarks for key API endpoints demonstrating sub-200ms response times under normal load.
->>>>>>> 319a830 (Final push)
+
+> > > > > > > 319a830 (Final push)
 
 ---
 
@@ -355,7 +363,8 @@ curl -X POST http://localhost:5000/api/cloud/regions/seed
 This inserts 10 AWS regions (plus 2 GCP/Azure reference entries) sorted by carbon intensity.
 =======
 This inserts 10 AWS regions sorted by carbon intensity.
->>>>>>> 319a830 (Final push)
+
+> > > > > > > 319a830 (Final push)
 
 ---
 
@@ -431,7 +440,8 @@ python app.py
 Log in with the same credentials you registered via the web frontend. The app will show three tabs: Local Tracking, Cloud Optimization, and Active Instances (when cloud features are enabled).
 =======
 Log in with the same credentials you registered via the web frontend.
->>>>>>> 319a830 (Final push)
+
+> > > > > > > 319a830 (Final push)
 
 **Test your AWS setup** (optional):
 
@@ -452,10 +462,11 @@ npm install
 Edit `mobile_app/src/services/api.js` and set `BASE_URL` to your machine's local IP (not `localhost` — the phone needs to reach your computer on the network):
 =======
 Edit `mobile_app/src/services/api.js` and set `BASE_URL` to your machine's local IP:
->>>>>>> 319a830 (Final push)
+
+> > > > > > > 319a830 (Final push)
 
 ```js
-const BASE_URL = 'http://192.168.1.x:5000/api';
+const BASE_URL = "http://192.168.1.x:5000/api";
 ```
 
 Start Expo:
@@ -468,7 +479,8 @@ npx expo start
 Scan the QR code with **Expo Go** (iOS or Android) or press `a`/`i` for emulators.
 =======
 Scan the QR code with **Expo Go** or press `a`/`i` for emulators.
->>>>>>> 319a830 (Final push)
+
+> > > > > > > 319a830 (Final push)
 
 ---
 
@@ -476,31 +488,33 @@ Scan the QR code with **Expo Go** or press `a`/`i` for emulators.
 
 ### Backend (`web_app/backend/.env`)
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `PORT` | No | `5000` | Server port |
-| `MONGODB_URI` | Yes | — | MongoDB connection string |
-| `JWT_SECRET` | Yes | — | Secret for signing JWT tokens |
-| `ENABLE_CLOUD_INTEGRATION` | No | `false` | Enable AWS SDK calls |
-| `AWS_ACCESS_KEY_ID` | If cloud enabled | — | AWS access key |
-| `AWS_SECRET_ACCESS_KEY` | If cloud enabled | — | AWS secret key |
-| `AWS_REGION` | No | `us-east-1` | Default AWS region |
-| `NODE_ENV` | No | `development` | Environment name |
+| Variable                   | Required         | Default       | Description                   |
+| -------------------------- | ---------------- | ------------- | ----------------------------- |
+| `PORT`                     | No               | `5000`        | Server port                   |
+| `MONGODB_URI`              | Yes              | —             | MongoDB connection string     |
+| `JWT_SECRET`               | Yes              | —             | Secret for signing JWT tokens |
+| `ENABLE_CLOUD_INTEGRATION` | No               | `false`       | Enable AWS SDK calls          |
+| `AWS_ACCESS_KEY_ID`        | If cloud enabled | —             | AWS access key                |
+| `AWS_SECRET_ACCESS_KEY`    | If cloud enabled | —             | AWS secret key                |
+| `AWS_REGION`               | No               | `us-east-1`   | Default AWS region            |
+| `NODE_ENV`                 | No               | `development` | Environment name              |
 
 ### Python App (`python_app/.env`)
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `BACKEND_URL` | Yes | `http://localhost:5000/api` | Backend API base URL |
+| Variable      | Required | Default                     | Description          |
+| ------------- | -------- | --------------------------- | -------------------- |
+| `BACKEND_URL` | Yes      | `http://localhost:5000/api` | Backend API base URL |
+
 <<<<<<< HEAD
 | `DASHBOARD_URL` | No | `http://localhost:3000` | Web dashboard URL (opened via browser button) |
 =======
 | `DASHBOARD_URL` | No | `http://localhost:3000` | Web dashboard URL |
->>>>>>> 319a830 (Final push)
-| `ENABLE_CLOUD_FEATURES` | No | `false` | Show cloud tabs in the desktop app |
-| `AWS_ACCESS_KEY_ID` | If cloud enabled | — | AWS access key |
-| `AWS_SECRET_ACCESS_KEY` | If cloud enabled | — | AWS secret key |
-| `AWS_REGION` | No | `us-east-1` | Default region |
+
+> > > > > > > 319a830 (Final push)
+> > > > > > > | `ENABLE_CLOUD_FEATURES` | No | `false` | Show cloud tabs in the desktop app |
+> > > > > > > | `AWS_ACCESS_KEY_ID` | If cloud enabled | — | AWS access key |
+> > > > > > > | `AWS_SECRET_ACCESS_KEY` | If cloud enabled | — | AWS secret key |
+> > > > > > > | `AWS_REGION` | No | `us-east-1` | Default region |
 
 ---
 
@@ -551,6 +565,7 @@ User selects AWS region  →  POST /api/cloud/calculate-savings
 **Instance type resolution**: newer AWS regions (Stockholm, Montreal, Mumbai, etc.) do not offer `t2.micro` on the free tier — they use `t3.micro`. The `cloudManager.resolveInstanceType()` function (and its Python mirror in `app.py`) automatically upgrades `t2.micro → t3.micro` in those regions and surfaces a notice to the user.
 
 <<<<<<< HEAD
+
 ### Reporting
 
 Three report endpoints aggregate from MongoDB:
@@ -560,53 +575,55 @@ Three report endpoints aggregate from MongoDB:
 - **`GET /api/reports/progress`** — daily aggregation for the last 30 days, merged with cloud savings by date.
 
 =======
->>>>>>> 319a830 (Final push)
+
+> > > > > > > 319a830 (Final push)
+
 ---
 
 ## API Reference
 
 ### Auth
 
-| Method | Path | Body | Description |
-|---|---|---|---|
-| POST | `/api/auth/register` | `{name, email, password}` | Register a new user |
-| POST | `/api/auth/login` | `{email, password}` | Login, returns JWT |
-| GET | `/api/auth/profile` | — | Get current user |
-| PUT | `/api/auth/profile` | `{name?, preferences?}` | Update profile |
+| Method | Path                 | Body                      | Description         |
+| ------ | -------------------- | ------------------------- | ------------------- |
+| POST   | `/api/auth/register` | `{name, email, password}` | Register a new user |
+| POST   | `/api/auth/login`    | `{email, password}`       | Login, returns JWT  |
+| GET    | `/api/auth/profile`  | —                         | Get current user    |
+| PUT    | `/api/auth/profile`  | `{name?, preferences?}`   | Update profile      |
 
 ### Emissions
 
-| Method | Path | Description |
-|---|---|---|
-| POST | `/api/emissions/log` | Log a tracking session |
-| GET | `/api/emissions` | List emissions (supports `startDate`, `endDate`, `limit`) |
-| GET | `/api/emissions/recent?limit=10` | Most recent N sessions |
-| GET | `/api/emissions/stats?period=week` | Aggregated stats for a period |
-| DELETE | `/api/emissions/:id` | Delete a session |
+| Method | Path                               | Description                                               |
+| ------ | ---------------------------------- | --------------------------------------------------------- |
+| POST   | `/api/emissions/log`               | Log a tracking session                                    |
+| GET    | `/api/emissions`                   | List emissions (supports `startDate`, `endDate`, `limit`) |
+| GET    | `/api/emissions/recent?limit=10`   | Most recent N sessions                                    |
+| GET    | `/api/emissions/stats?period=week` | Aggregated stats for a period                             |
+| DELETE | `/api/emissions/:id`               | Delete a session                                          |
 
 ### Cloud
 
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/cloud/test-connection/aws` | Verify AWS credentials |
-| GET | `/api/cloud/regions?provider=aws` | List regions sorted by carbon intensity |
-| POST | `/api/cloud/regions/seed` | Seed the database with known regions |
-| POST | `/api/cloud/calculate-savings` | Calculate local vs cloud CO₂ |
-| POST | `/api/cloud/launch-instance` | Launch a real EC2 instance |
-| POST | `/api/cloud/terminate-instance` | Terminate an EC2 instance |
-| GET | `/api/cloud/instance-status/:provider/:id` | Get instance state |
-| GET | `/api/cloud/instances/:provider` | List running instances |
-| POST | `/api/cloud/workloads` | Submit a (simulated) workload |
-| GET | `/api/cloud/workloads` | List user's workloads |
-| GET | `/api/cloud/workloads/:id` | Get workload details |
+| Method | Path                                       | Description                             |
+| ------ | ------------------------------------------ | --------------------------------------- |
+| GET    | `/api/cloud/test-connection/aws`           | Verify AWS credentials                  |
+| GET    | `/api/cloud/regions?provider=aws`          | List regions sorted by carbon intensity |
+| POST   | `/api/cloud/regions/seed`                  | Seed the database with known regions    |
+| POST   | `/api/cloud/calculate-savings`             | Calculate local vs cloud CO₂            |
+| POST   | `/api/cloud/launch-instance`               | Launch a real EC2 instance              |
+| POST   | `/api/cloud/terminate-instance`            | Terminate an EC2 instance               |
+| GET    | `/api/cloud/instance-status/:provider/:id` | Get instance state                      |
+| GET    | `/api/cloud/instances/:provider`           | List running instances                  |
+| POST   | `/api/cloud/workloads`                     | Submit a (simulated) workload           |
+| GET    | `/api/cloud/workloads`                     | List user's workloads                   |
+| GET    | `/api/cloud/workloads/:id`                 | Get workload details                    |
 
 ### Reports
 
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/reports/summary?period=week` | Period summary |
-| GET | `/api/reports/insights` | AI-style insight cards |
-| GET | `/api/reports/progress` | Daily progress for last 30 days |
+| Method | Path                               | Description                     |
+| ------ | ---------------------------------- | ------------------------------- |
+| GET    | `/api/reports/summary?period=week` | Period summary                  |
+| GET    | `/api/reports/insights`            | AI-style insight cards          |
+| GET    | `/api/reports/progress`            | Daily progress for last 30 days |
 
 ---
 
@@ -671,12 +688,14 @@ carbon-tracker-app/
 
 - **CodeCarbon** requires admin/root access on some systems to read hardware energy counters (RAPL on Linux, NVML for NVIDIA GPUs). On macOS and Windows it falls back to software estimation automatically.
 - Real AWS instance launches will incur costs. Always terminate instances from the Active Instances tab when done. The app estimates cost before you confirm.
-<<<<<<< HEAD
+  <<<<<<< HEAD
 - The `regions/seed` endpoint can be called any number of times — it drops and recreates the regions collection each time, so it is safe to re-run after schema changes.
 - Carbon intensity figures (gCO₂/kWh) in the seeded data are approximate regional averages; for production use, consider integrating a live API such as Electricity Maps.
 
 ---
+
 =======
+
 - The `regions/seed` endpoint drops and recreates the regions collection each time — safe to re-run after schema changes.
 - Carbon intensity figures (gCO₂/kWh) in the seeded data are approximate regional averages. For production use, consider integrating a live API such as Electricity Maps.
 
@@ -685,4 +704,5 @@ carbon-tracker-app/
 ## License
 
 MIT
->>>>>>> 319a830 (Final push)
+
+> > > > > > > 319a830 (Final push)
