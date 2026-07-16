@@ -354,9 +354,8 @@ The API will be available at `http://localhost:5000`. Visit `http://localhost:50
 curl -X POST http://localhost:5000/api/cloud/regions/seed
 ```
 
-<<<<<<< HEAD
-This inserts 10 AWS regions (plus 2 GCP/Azure reference entries) sorted by carbon intensity.
-=======
+# This inserts 10 AWS regions (plus 2 GCP/Azure reference entries) sorted by carbon intensity.
+
 This inserts 10 AWS regions sorted by carbon intensity.
 
 ---
@@ -428,9 +427,8 @@ Run the app:
 python app.py
 ```
 
-<<<<<<< HEAD
-Log in with the same credentials you registered via the web frontend. The app will show three tabs: Local Tracking, Cloud Optimization, and Active Instances (when cloud features are enabled).
-=======
+# Log in with the same credentials you registered via the web frontend. The app will show three tabs: Local Tracking, Cloud Optimization, and Active Instances (when cloud features are enabled).
+
 Log in with the same credentials you registered via the web frontend.
 
 **Test your AWS setup** (optional):
@@ -448,9 +446,8 @@ cd mobile_app
 npm install
 ```
 
-<<<<<<< HEAD
-Edit `mobile_app/src/services/api.js` and set `BASE_URL` to your machine's local IP (not `localhost` — the phone needs to reach your computer on the network):
-=======
+# Edit `mobile_app/src/services/api.js` and set `BASE_URL` to your machine's local IP (not `localhost` — the phone needs to reach your computer on the network):
+
 Edit `mobile_app/src/services/api.js` and set `BASE_URL` to your machine's local IP:
 
 ```js
@@ -490,9 +487,8 @@ Scan the QR code with **Expo Go** or press `a`/`i` for emulators.
 | ------------- | -------- | --------------------------- | -------------------- |
 | `BACKEND_URL` | Yes      | `http://localhost:5000/api` | Backend API base URL |
 
-<<<<<<< HEAD
-| `DASHBOARD_URL` | No | `http://localhost:3000` | Web dashboard URL (opened via browser button) |
-=======
+# | `DASHBOARD_URL` | No | `http://localhost:3000` | Web dashboard URL (opened via browser button) |
+
 | `DASHBOARD_URL` | No | `http://localhost:3000` | Web dashboard URL |
 
 | `ENABLE_CLOUD_FEATURES` | No | `false` | Show cloud tabs in the desktop app |
@@ -663,7 +659,6 @@ carbon-tracker-app/
 
 - **CodeCarbon** requires admin/root access on some systems to read hardware energy counters (RAPL on Linux, NVML for NVIDIA GPUs). On macOS and Windows it falls back to software estimation automatically.
 - Real AWS instance launches will incur costs. Always terminate instances from the Active Instances tab when done. The app estimates cost before you confirm.
-  <<<<<<< HEAD
 - The `regions/seed` endpoint can be called any number of times — it drops and recreates the regions collection each time, so it is safe to re-run after schema changes.
 - Carbon intensity figures (gCO₂/kWh) in the seeded data are approximate regional averages; for production use, consider integrating a live API such as Electricity Maps.
 
@@ -673,5 +668,3 @@ carbon-tracker-app/
 
 - The `regions/seed` endpoint drops and recreates the regions collection each time — safe to re-run after schema changes.
 - Carbon intensity figures (gCO₂/kWh) in the seeded data are approximate regional averages. For production use, consider integrating a live API such as Electricity Maps.
-
----
