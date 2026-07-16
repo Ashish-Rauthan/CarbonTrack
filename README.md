@@ -11,9 +11,7 @@ Carbon Tracker is a full-stack application that measures real-time energy consum
 - [Features](#features)
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
-- [Screenshots](#screenshots)
-  <<<<<<< HEAD
-  =======
+- # [Screenshots](#screenshots)
   - [System Design](#system-design)
   - [Web App — Authentication](#web-app--authentication)
   - [Web App — Dashboard](#web-app--dashboard)
