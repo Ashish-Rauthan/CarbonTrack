@@ -17,7 +17,7 @@ Carbon Tracker is a full-stack application that measures real-time energy consum
   - [Web App — Dashboard](#web-app--dashboard)
   - [Web App — Cloud Optimization](#web-app--cloud-optimization)
   - [Web App — Reports](#web-app--reports)
-  - [Desktop App (PyQt6)](#desktop-app-pyqt6
+  - [Desktop App (PyQt6)](#desktop-app-pyqt6)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Backend Setup](#backend-setup)
