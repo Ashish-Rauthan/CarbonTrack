@@ -112,8 +112,6 @@ Carbon Tracker is a full-stack application that measures real-time energy consum
 
 ## Screenshots
 
-<<<<<<< HEAD
-
 ### Web Dashboard — Overview
 
 The main dashboard shows live emission stats, recent tracking sessions, and environmental impact equivalents. Data auto-refreshes every 30 seconds.
