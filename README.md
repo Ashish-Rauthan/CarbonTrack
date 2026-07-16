@@ -17,8 +17,7 @@ Carbon Tracker is a full-stack application that measures real-time energy consum
   - [Web App — Dashboard](#web-app--dashboard)
   - [Web App — Cloud Optimization](#web-app--cloud-optimization)
   - [Web App — Reports](#web-app--reports)
-  - [Desktop App (PyQt6)](#desktop-app-pyqt6)
-    > > > > > > > 319a830 (Final push)
+  - [Desktop App (PyQt6)](#desktop-app-pyqt6
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Backend Setup](#backend-setup)
@@ -360,8 +359,6 @@ This inserts 10 AWS regions (plus 2 GCP/Azure reference entries) sorted by carbo
 =======
 This inserts 10 AWS regions sorted by carbon intensity.
 
-> > > > > > > 319a830 (Final push)
-
 ---
 
 ### Frontend Setup
@@ -396,7 +393,6 @@ cd python_app
 python -m venv venv
 source venv/bin/activate    # Windows: venv\Scripts\activate
 
-<<<<<<< HEAD
 pip install -r requirements.txt
 ```
 
@@ -410,7 +406,7 @@ codecarbon
 boto3
 =======
 pip install PyQt6 requests python-dotenv codecarbon boto3
->>>>>>> 319a830 (Final push)
+
 ```
 
 Create `python_app/.env`:
@@ -437,8 +433,6 @@ Log in with the same credentials you registered via the web frontend. The app wi
 =======
 Log in with the same credentials you registered via the web frontend.
 
-> > > > > > > 319a830 (Final push)
-
 **Test your AWS setup** (optional):
 
 ```bash
@@ -459,8 +453,6 @@ Edit `mobile_app/src/services/api.js` and set `BASE_URL` to your machine's local
 =======
 Edit `mobile_app/src/services/api.js` and set `BASE_URL` to your machine's local IP:
 
-> > > > > > > 319a830 (Final push)
-
 ```js
 const BASE_URL = "http://192.168.1.x:5000/api";
 ```
@@ -471,12 +463,9 @@ Start Expo:
 npx expo start
 ```
 
-<<<<<<< HEAD
-Scan the QR code with **Expo Go** (iOS or Android) or press `a`/`i` for emulators.
-=======
-Scan the QR code with **Expo Go** or press `a`/`i` for emulators.
+# Scan the QR code with **Expo Go** (iOS or Android) or press `a`/`i` for emulators.
 
-> > > > > > > 319a830 (Final push)
+Scan the QR code with **Expo Go** or press `a`/`i` for emulators.
 
 ---
 
@@ -506,11 +495,10 @@ Scan the QR code with **Expo Go** or press `a`/`i` for emulators.
 =======
 | `DASHBOARD_URL` | No | `http://localhost:3000` | Web dashboard URL |
 
-> > > > > > > 319a830 (Final push)
-> > > > > > > | `ENABLE_CLOUD_FEATURES` | No | `false` | Show cloud tabs in the desktop app |
-> > > > > > > | `AWS_ACCESS_KEY_ID` | If cloud enabled | — | AWS access key |
-> > > > > > > | `AWS_SECRET_ACCESS_KEY` | If cloud enabled | — | AWS secret key |
-> > > > > > > | `AWS_REGION` | No | `us-east-1` | Default region |
+| `ENABLE_CLOUD_FEATURES` | No | `false` | Show cloud tabs in the desktop app |
+| `AWS_ACCESS_KEY_ID` | If cloud enabled | — | AWS access key |
+| `AWS_SECRET_ACCESS_KEY` | If cloud enabled | — | AWS secret key |
+| `AWS_REGION` | No | `us-east-1` | Default region |
 
 ---
 
@@ -560,8 +548,6 @@ User selects AWS region  →  POST /api/cloud/calculate-savings
 
 **Instance type resolution**: newer AWS regions (Stockholm, Montreal, Mumbai, etc.) do not offer `t2.micro` on the free tier — they use `t3.micro`. The `cloudManager.resolveInstanceType()` function (and its Python mirror in `app.py`) automatically upgrades `t2.micro → t3.micro` in those regions and surfaces a notice to the user.
 
-<<<<<<< HEAD
-
 ### Reporting
 
 Three report endpoints aggregate from MongoDB:
@@ -571,8 +557,6 @@ Three report endpoints aggregate from MongoDB:
 - **`GET /api/reports/progress`** — daily aggregation for the last 30 days, merged with cloud savings by date.
 
 =======
-
-> > > > > > > 319a830 (Final push)
 
 ---
 
@@ -637,11 +621,9 @@ carbon-tracker-app/
 │
 ├── web_app/
 │   ├── backend/                 # Express.js API
-<<<<<<< HEAD
 │   │   ├── models/              # Mongoose schemas (User, Emission, CloudRegion, CloudWorkload)
 =======
 │   │   ├── models/              # User, Emission, CloudRegion, CloudWorkload
->>>>>>> 319a830 (Final push)
 │   │   ├── routes/              # auth.js, emissions.js, reports.js, cloud.js
 │   │   ├── middleware/auth.js   # JWT verification
 │   │   ├── services/
@@ -666,14 +648,11 @@ carbon-tracker-app/
     ├── src/
     │   ├── screens/             # Dashboard, Tracker, Cloud, Reports, Login, Register
     │   ├── components/UI.js     # Shared design system components
-<<<<<<< HEAD
     │   ├── services/api.js      # Axios client (same endpoints)
     │   ├── context/AuthContext.js
     │   ├── navigation/AppNavigator.js
-=======
     │   ├── services/api.js      # Axios client
     │   ├── context/AuthContext.js
->>>>>>> 319a830 (Final push)
     │   └── utils/theme.js       # "Earthbound Editorial" design tokens
     └── app/                     # Expo Router entry points
 ```
@@ -696,9 +675,3 @@ carbon-tracker-app/
 - Carbon intensity figures (gCO₂/kWh) in the seeded data are approximate regional averages. For production use, consider integrating a live API such as Electricity Maps.
 
 ---
-
-## License
-
-MIT
-
-> > > > > > > 319a830 (Final push)
